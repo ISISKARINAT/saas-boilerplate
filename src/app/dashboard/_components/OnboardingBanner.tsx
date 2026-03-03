@@ -4,19 +4,17 @@
  * OnboardingBanner — dismissable welcome banner for new users.
  * Shown once; dismissed state is persisted in localStorage.
  */
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { X, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const DISMISSED_KEY = "onboarding_banner_dismissed";
 
 export function OnboardingBanner() {
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const dismissed = localStorage.getItem(DISMISSED_KEY);
-    if (!dismissed) setVisible(true);
-  }, []);
+  const [visible, setVisible] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return !localStorage.getItem(DISMISSED_KEY);
+  });
 
   function handleDismiss() {
     localStorage.setItem(DISMISSED_KEY, "true");

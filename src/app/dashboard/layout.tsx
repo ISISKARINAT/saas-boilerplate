@@ -3,11 +3,16 @@
  * Protégé par le middleware (src/middleware.ts).
  * Inclut Sidebar, Header et Breadcrumbs.
  */
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import Breadcrumbs from "@/components/Breadcrumbs";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 interface DashboardLayoutProps {
   children: React.ReactNode;

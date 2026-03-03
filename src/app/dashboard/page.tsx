@@ -4,6 +4,7 @@
  * Displays a greeting header, metric cards, onboarding flow, and recent activity.
  */
 import { headers } from "next/headers";
+import type { Metadata } from "next";
 import { DollarSign, Users, CreditCard, Activity, ArrowUpRight, ArrowDownRight, TrendingUp } from "lucide-react";
 import {
   Card,
@@ -25,6 +26,12 @@ import { OnboardingFlow } from "./_components/OnboardingFlow";
 import { getDashboardMetrics } from "@/lib/dashboard";
 
 const ACTIVITY_COLUMNS = ["Event", "User", "Date", "Status"] as const;
+
+export const metadata: Metadata = {
+  title: "Dashboard",
+  description: "Your SaaS analytics dashboard — monitor MRR, users, and subscriptions.",
+  robots: { index: false, follow: false },
+};
 const PLACEHOLDER_ROWS = Array.from({ length: 5 }, (_, i) => i);
 
 function formatMrr(cents: number): string {

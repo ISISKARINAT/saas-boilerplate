@@ -49,7 +49,7 @@ function StatusMessage({ state }: { state: SettingsActionState }) {
   );
 }
 
-function SubmitButton({ pendingLabel, label }: { pendingLabel: string; label: string }) {
+function SubmitButton({ label }: { label: string }) {
   return (
     <Button type="submit" className="w-full">
       {label}
@@ -114,10 +114,7 @@ export function SettingsForms({ initialName, initialEmail }: SettingsFormsProps)
 
               <StatusMessage state={profileState} />
 
-              <SubmitButton
-                label={profilePending ? "Saving…" : "Save changes"}
-                pendingLabel="Saving…"
-              />
+              <SubmitButton label={profilePending ? "Saving…" : "Save changes"} />
             </form>
           </CardContent>
         </Card>
@@ -174,10 +171,7 @@ export function SettingsForms({ initialName, initialEmail }: SettingsFormsProps)
 
               <StatusMessage state={passwordState} />
 
-              <SubmitButton
-                label={passwordPending ? "Changing…" : "Change password"}
-                pendingLabel="Changing…"
-              />
+              <SubmitButton label={passwordPending ? "Changing…" : "Change password"} />
             </form>
           </CardContent>
         </Card>

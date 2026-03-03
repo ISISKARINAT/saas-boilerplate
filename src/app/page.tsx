@@ -30,6 +30,17 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title,
     description,
+    keywords: [
+      "SaaS boilerplate",
+      "Next.js template",
+      "startup kit",
+      "authentication",
+      "Stripe billing",
+      "ship fast",
+    ],
+    alternates: {
+      canonical: "/",
+    },
     openGraph: {
       title,
       description,
