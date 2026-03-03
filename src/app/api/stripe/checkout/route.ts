@@ -1,43 +1,101 @@
 /**
  * POST /api/stripe/checkout — Creates a Stripe Checkout Session.
- * Body: { priceId: string }
- * Redirects the user to the Stripe Checkout page.
+ *
+ * Body (JSON): { planId: "pro" | "enterprise" } OR { priceId: string }
+ * Requires authentication via the "token" cookie (JWT).
+ *
+ * On success returns: { url: string } — the Stripe Checkout page URL.
  * Supports both one-time payments and subscriptions (auto-detected from price type).
  */
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { stripe } from "@/lib/stripe";
+import { verifyToken } from "@/lib/auth";
+import { db } from "@/lib/db";
+import {
+  PLANS,
+  getStripeCustomerId,
+  createCheckoutSession,
+  type PlanId,
+} from "@/lib/stripe";
 
-const checkoutBodySchema = z.object({
-  priceId: z.string().min(1, "priceId is required"),
-});
+const checkoutBodySchema = z.union([
+  z.object({ planId: z.enum(["pro", "enterprise"]) }),
+  z.object({ priceId: z.string().min(1, "priceId is required") }),
+]);
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  try {
-    const body: unknown = await request.json();
-    const parsed = checkoutBodySchema.safeParse(body);
+  // ── Authentication ──────────────────────────────────────────────────────
+  const token = request.cookies.get("token")?.value;
+  if (!token) {
+    return NextResponse.json(
+      { error: "Authentication required" },
+      { status: 401 }
+    );
+  }
 
-    if (!parsed.success) {
+  const session = await verifyToken(token);
+  if (!session) {
+    return NextResponse.json(
+      { error: "Invalid or expired token" },
+      { status: 401 }
+    );
+  }
+
+  const { userId } = session;
+
+  // ── Body validation ──────────────────────────────────────────────────────
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const parsed = checkoutBodySchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "Invalid request body" },
+      { status: 400 }
+    );
+  }
+
+  // Resolve priceId — from planId lookup or direct value
+  let priceId: string;
+  if ("planId" in parsed.data) {
+    const plan = PLANS[parsed.data.planId as PlanId];
+    if (!plan.priceId) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Invalid request body" },
-        { status: 400 }
+        { error: `No Stripe price configured for plan "${parsed.data.planId}"` },
+        { status: 500 }
       );
     }
+    priceId = plan.priceId;
+  } else {
+    priceId = parsed.data.priceId;
+  }
 
-    const { priceId } = parsed.data;
+  // ── Fetch user email ─────────────────────────────────────────────────────
+  const userResult = await db.execute({
+    sql: "SELECT email FROM users WHERE id = ? LIMIT 1",
+    args: [userId],
+  });
+  const userEmail = String(userResult.rows[0]?.["email"] ?? "");
+  if (!userEmail) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
 
-    // Auto-detect mode from price type
-    const price = await stripe.prices.retrieve(priceId);
-    const mode = price.recurring ? "subscription" : "payment";
-
+  // ── Create Checkout Session ──────────────────────────────────────────────
+  try {
+    const existingCustomerId = await getStripeCustomerId(userId);
     const appUrl = process.env["NEXT_PUBLIC_APP_URL"] ?? "http://localhost:3000";
 
-    const checkoutSession = await stripe.checkout.sessions.create({
-      mode,
-      payment_method_types: ["card"],
-      line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${appUrl}/dashboard?checkout=success`,
-      cancel_url: `${appUrl}/dashboard?checkout=cancelled`,
+    const checkoutSession = await createCheckoutSession({
+      userId,
+      userEmail,
+      priceId,
+      existingCustomerId,
+      successUrl: `${appUrl}/dashboard?checkout=success`,
+      cancelUrl: `${appUrl}/dashboard?checkout=cancelled`,
     });
 
     if (!checkoutSession.url) {
@@ -50,7 +108,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    return NextResponse.redirect(checkoutSession.url, { status: 303 });
+    return NextResponse.json({ url: checkoutSession.url }, { status: 200 });
   } catch (err) {
     console.error("[stripe/checkout] Error creating session", {
       message: err instanceof Error ? err.message : String(err),

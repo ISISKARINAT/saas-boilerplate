@@ -1,7 +1,7 @@
 /**
- * POST /api/stripe/webhook — Stripe webhook event receiver.
+ * POST /api/stripe/webhook -- Stripe webhook event receiver.
  *
- * SECURITY — Signature verification:
+ * SECURITY -- Signature verification:
  *   Stripe signs each webhook with STRIPE_WEBHOOK_SECRET (whsec_...).
  *   We must read the raw body BEFORE any JSON parsing, then call
  *   stripe.webhooks.constructEvent() which recomputes the HMAC-SHA256 signature
@@ -10,14 +10,17 @@
  *   => Never parse the body with request.json() before constructEvent.
  *
  * Handled events:
- *   - checkout.session.completed       : subscription activated or one-time payment
- *   - customer.subscription.updated    : plan or status change
- *   - customer.subscription.deleted    : subscription cancelled
+ *   - checkout.session.completed    : subscription activated or one-time payment
+ *   - customer.subscription.updated : plan or status changed
+ *   - customer.subscription.deleted : subscription cancelled
  */
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { stripe } from "@/lib/stripe";
-import { client } from "@/lib/db";
+import { drizzle } from "drizzle-orm/libsql";
+import { eq } from "drizzle-orm";
+import { sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { stripe, getPlanByPriceId, type PlanId } from "@/lib/stripe";
+import { client, type SubscriptionStatus } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
 
 /**
@@ -28,11 +31,32 @@ export const config = {
   api: { bodyParser: false },
 };
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
-  // Read raw body (required for signature verification)
-  const rawBody = await request.text();
+// ---------------------------------------------------------------------------
+// Drizzle client + inline schema matching the subscriptions table
+// (schema: id, user_id, stripe_customer_id, plan, status)
+// ---------------------------------------------------------------------------
 
-  // Signature header sent by Stripe with every webhook
+const subscriptionsTable = sqliteTable("subscriptions", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  stripeCustomerId: text("stripe_customer_id"),
+  plan: text("plan", { enum: ["free", "pro", "enterprise"] })
+    .notNull()
+    .$type<PlanId>(),
+  status: text("status", { enum: ["active", "inactive", "cancelled"] })
+    .notNull()
+    .$type<SubscriptionStatus>(),
+});
+
+/** Drizzle client wrapping the shared libSQL connection. */
+const db = drizzle(client);
+
+// ---------------------------------------------------------------------------
+// POST handler
+// ---------------------------------------------------------------------------
+
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  const rawBody = await request.text();
   const signature = request.headers.get("stripe-signature");
 
   const webhookSecret = process.env["STRIPE_WEBHOOK_SECRET"];
@@ -46,10 +70,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   if (!signature) {
     console.warn("[stripe/webhook] Missing stripe-signature header");
-    return NextResponse.json(
-      { error: "Missing signature" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Missing signature" }, { status: 400 });
   }
 
   let event: Stripe.Event;
@@ -58,7 +79,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     /**
      * constructEvent verifies:
      *  1. HMAC-SHA256 signature of the payload using STRIPE_WEBHOOK_SECRET
-     *  2. Timestamp tolerance (default ±300s) to prevent replay attacks
+     *  2. Timestamp tolerance (default +-300s) to prevent replay attacks
      * Throws if the signature is invalid or expired.
      */
     event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
@@ -66,13 +87,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     console.error("[stripe/webhook] Signature verification failed", {
       message: err instanceof Error ? err.message : String(err),
     });
-    return NextResponse.json(
-      { error: "Invalid signature" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  // Route event to the appropriate handler
   try {
     switch (event.type) {
       case "checkout.session.completed": {
@@ -94,7 +111,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
 
       default:
-        // Unhandled events — silently ignored (Stripe expects 200)
+        // Unhandled events -- silently ignored (Stripe expects 200)
         break;
     }
   } catch (err) {
@@ -112,30 +129,87 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   return NextResponse.json({ received: true }, { status: 200 });
 }
 
-/**
- * Maps a Stripe subscription status to our internal SubscriptionStatus enum.
- */
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Maps a Stripe subscription status to our internal SubscriptionStatus. */
 function mapStatus(
   stripeStatus: Stripe.Subscription.Status
-): "active" | "inactive" | "cancelled" {
+): SubscriptionStatus {
   if (stripeStatus === "active" || stripeStatus === "trialing") return "active";
   if (stripeStatus === "canceled") return "cancelled";
   return "inactive";
 }
 
 /**
+ * Resolves a PlanId from a Stripe Price ID.
+ * Falls back to `fallback` (default "pro") when the price maps to "free",
+ * since a paid checkout can never result in a free plan.
+ */
+function resolvePlan(priceId: string, fallback: PlanId = "pro"): PlanId {
+  const plan = getPlanByPriceId(priceId);
+  return plan === "free" ? fallback : plan;
+}
+
+/**
+ * Atomically upserts a subscription row for the given user using
+ * db.transaction. Uses db.update for existing rows and db.insert for new ones.
+ */
+async function upsertSubscription(
+  userId: string,
+  customerId: string,
+  plan: PlanId,
+  status: SubscriptionStatus
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    const existing = await tx
+      .select({ id: subscriptionsTable.id })
+      .from(subscriptionsTable)
+      .where(eq(subscriptionsTable.userId, userId))
+      .limit(1);
+
+    if (existing.length > 0) {
+      await tx
+        .update(subscriptionsTable)
+        .set({ stripeCustomerId: customerId, plan, status })
+        .where(eq(subscriptionsTable.userId, userId));
+    } else {
+      await tx.insert(subscriptionsTable).values({
+        id: crypto.randomUUID(),
+        userId,
+        stripeCustomerId: customerId,
+        plan,
+        status,
+      });
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Event handlers
+// ---------------------------------------------------------------------------
+
+/**
  * Handles checkout.session.completed.
- * Creates or updates the subscription record in the database.
+ *
+ * Retrieves user_id from session.metadata.user_id (primary) or
+ * client_reference_id (fallback). Extracts stripe_customer_id from
+ * session.customer. Determines the plan from the purchased Price ID and
+ * upserts the subscriptions row atomically.
  * Sends an invoice email for subscription purchases.
  */
 async function handleCheckoutCompleted(
   session: Stripe.Checkout.Session
 ): Promise<void> {
-  const userId = session.client_reference_id;
-  const customerId =
+  // Prefer metadata.user_id; fall back to client_reference_id
+  const userId: string | null =
+    session.metadata?.["user_id"] ?? session.client_reference_id ?? null;
+
+  const customerId: string | null =
     typeof session.customer === "string"
       ? session.customer
-      : session.customer?.id;
+      : (session.customer?.id ?? null);
 
   if (!userId || !customerId) {
     console.error(
@@ -145,9 +219,7 @@ async function handleCheckoutCompleted(
     return;
   }
 
-  let stripeSubscriptionId: string;
-  let stripePriceId: string;
-  let currentPeriodEnd: number; // unix timestamp in seconds
+  let plan: PlanId = "pro";
 
   if (session.mode === "subscription" && session.subscription) {
     const subscriptionId =
@@ -155,48 +227,24 @@ async function handleCheckoutCompleted(
         ? session.subscription
         : session.subscription.id;
     const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-    stripeSubscriptionId = subscription.id;
-    stripePriceId = subscription.items.data[0]?.price.id ?? "";
-    // billing_cycle_anchor replaces current_period_end in API 2026-02-25.clover
-    currentPeriodEnd = subscription.billing_cycle_anchor;
-  } else {
-    // One-time payment — use session ID as unique subscription identifier
-    stripeSubscriptionId = session.id;
+    const priceId = subscription.items.data[0]?.price.id ?? "";
+    plan = resolvePlan(priceId);
+  } else if (session.mode === "payment") {
     const sessionWithItems = await stripe.checkout.sessions.retrieve(
       session.id,
       { expand: ["line_items"] }
     );
-    stripePriceId = sessionWithItems.line_items?.data[0]?.price?.id ?? "";
-    currentPeriodEnd = Math.floor(Date.now() / 1000);
+    const priceId = sessionWithItems.line_items?.data[0]?.price?.id ?? "";
+    plan = resolvePlan(priceId);
   }
 
-  await client.execute({
-    sql: `
-      INSERT INTO subscriptions (id, user_id, stripe_customer_id, stripe_subscription_id, stripe_price_id, status, current_period_end)
-      VALUES (?, ?, ?, ?, ?, 'active', ?)
-      ON CONFLICT(user_id) DO UPDATE SET
-        stripe_customer_id     = excluded.stripe_customer_id,
-        stripe_subscription_id = excluded.stripe_subscription_id,
-        stripe_price_id        = excluded.stripe_price_id,
-        status                 = 'active',
-        current_period_end     = excluded.current_period_end,
-        updated_at             = unixepoch()
-    `,
-    args: [
-      crypto.randomUUID(),
-      userId,
-      customerId,
-      stripeSubscriptionId,
-      stripePriceId,
-      currentPeriodEnd,
-    ],
-  });
+  await upsertSubscription(userId, customerId, plan, "active");
 
-  console.info("[stripe/webhook] Subscription activated", { userId });
+  console.info("[stripe/webhook] Subscription activated", { userId, plan });
 
   if (session.mode !== "subscription") return;
 
-  // Send invoice email for subscription purchases
+  // Send invoice email -- fetch user email from the users table
   const userResult = await client.execute({
     sql: "SELECT email FROM users WHERE id = ? LIMIT 1",
     args: [userId],
@@ -220,7 +268,13 @@ async function handleCheckoutCompleted(
     invoiceNumber: `INV-${session.id.slice(-8).toUpperCase()}`,
     invoiceDate,
     dueDate: invoiceDate,
-    items: [{ description: "Pro Plan — Monthly", quantity: 1, unitPrice: total }],
+    items: [
+      {
+        description: `${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan -- Monthly`,
+        quantity: 1,
+        unitPrice: total,
+      },
+    ],
     total,
     currency,
     downloadUrl: `${appUrl}/billing`,
@@ -234,7 +288,8 @@ async function handleCheckoutCompleted(
 
 /**
  * Handles customer.subscription.updated.
- * Updates status and period end in the subscriptions table.
+ * Updates the plan (derived from the price ID) and status in the subscriptions
+ * table, matched by stripe_customer_id.
  */
 async function handleSubscriptionUpdated(
   subscription: Stripe.Subscription
@@ -244,37 +299,26 @@ async function handleSubscriptionUpdated(
       ? subscription.customer
       : subscription.customer.id;
 
-  const currentPeriodEnd = subscription.billing_cycle_anchor;
-  const status = mapStatus(subscription.status);
+  const priceId = subscription.items.data[0]?.price.id ?? "";
+  const plan: PlanId = getPlanByPriceId(priceId);
+  const status: SubscriptionStatus = mapStatus(subscription.status);
 
-  await client.execute({
-    sql: `
-      UPDATE subscriptions
-      SET stripe_subscription_id = ?,
-          stripe_price_id        = ?,
-          status                 = ?,
-          current_period_end     = ?,
-          updated_at             = unixepoch()
-      WHERE stripe_customer_id = ?
-    `,
-    args: [
-      subscription.id,
-      subscription.items.data[0]?.price.id ?? "",
-      status,
-      currentPeriodEnd,
-      customerId,
-    ],
-  });
+  await db
+    .update(subscriptionsTable)
+    .set({ plan, status })
+    .where(eq(subscriptionsTable.stripeCustomerId, customerId));
 
   console.info("[stripe/webhook] Subscription updated", {
     subscriptionId: subscription.id,
+    plan,
     status,
   });
 }
 
 /**
  * Handles customer.subscription.deleted.
- * Sets status to "cancelled" in the subscriptions table.
+ * Sets plan to "free" and status to "cancelled" in the subscriptions table,
+ * matched by stripe_customer_id.
  */
 async function handleSubscriptionDeleted(
   subscription: Stripe.Subscription
@@ -284,17 +328,13 @@ async function handleSubscriptionDeleted(
       ? subscription.customer
       : subscription.customer.id;
 
-  await client.execute({
-    sql: `
-      UPDATE subscriptions
-      SET status     = 'cancelled',
-          updated_at = unixepoch()
-      WHERE stripe_customer_id = ?
-    `,
-    args: [customerId],
-  });
+  await db
+    .update(subscriptionsTable)
+    .set({ plan: "free", status: "cancelled" })
+    .where(eq(subscriptionsTable.stripeCustomerId, customerId));
 
   console.info("[stripe/webhook] Subscription cancelled", {
     subscriptionId: subscription.id,
+    customerId,
   });
 }
