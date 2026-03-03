@@ -3,7 +3,7 @@
  * Vérifie l'unicité de l'e-mail, hache le mot de passe, insère l'utilisateur et retourne un JWT.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { client } from "@/lib/db";
 import { hashPassword, createToken } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
 import { z } from "zod";
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const { email, password } = parsed.data;
 
     // Vérification de l'unicité de l'e-mail
-    const existing = await db.execute({
+    const existing = await client.execute({
       sql: "SELECT id FROM users WHERE email = ? LIMIT 1",
       args: [email],
     });
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Hachage du mot de passe et insertion
     const hashedPassword = await hashPassword(password);
-    const insertResult = await db.execute({
+    const insertResult = await client.execute({
       sql: "INSERT INTO users (email, hashed_password) VALUES (?, ?) RETURNING id",
       args: [email, hashedPassword],
     });

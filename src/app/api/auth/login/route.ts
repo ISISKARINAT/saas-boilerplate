@@ -3,7 +3,7 @@
  * Vérifie les identifiants, crée un JWT et le stocke dans un cookie HttpOnly.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { client } from "@/lib/db";
 import { verifyPassword, createToken } from "@/lib/auth";
 import { z } from "zod";
 
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const { email, password } = parsed.data;
 
     // Recherche de l'utilisateur en base
-    const result = await db.execute({
+    const result = await client.execute({
       sql: "SELECT id, email, hashed_password FROM users WHERE email = ? LIMIT 1",
       args: [email],
     });

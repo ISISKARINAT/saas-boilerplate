@@ -27,14 +27,15 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex h-screen bg-bg text-text overflow-hidden">
-      {/* Barre latérale de navigation */}
+      {/* Navigation sidebar — responsive drawer on mobile, static on md+ */}
       <Sidebar />
 
-      {/* Zone de contenu principale */}
+      {/* Main content area */}
       <div className="flex flex-col flex-1 overflow-hidden">
         <Header userId={userId} />
 
-        <main className="flex-1 overflow-y-auto p-6">
+        {/* Extra left padding on mobile to clear the fixed hamburger button */}
+        <main className="flex-1 overflow-y-auto p-6 pl-16 md:pl-6">
           <Breadcrumbs />
           <div className="mt-4">{children}</div>
         </main>

@@ -17,7 +17,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
-import { db } from "@/lib/db";
+import { client } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
 
 /**
@@ -141,7 +141,7 @@ async function handleCheckoutCompleted(
   }
 
   // Upsert : crée ou met à jour la ligne subscription pour cet utilisateur
-  await db.execute({
+  await client.execute({
     sql: `
       INSERT INTO subscriptions (user_id, stripe_customer_id, subscription_id, status, plan)
       VALUES (?, ?, ?, 'active', 'pro')
@@ -157,7 +157,7 @@ async function handleCheckoutCompleted(
   console.info("[stripe/webhook] Abonnement activé", { userId });
 
   // Récupération de l'email utilisateur pour l'envoi de la facture
-  const userResult = await db.execute({
+  const userResult = await client.execute({
     sql: "SELECT email FROM users WHERE id = ? LIMIT 1",
     args: [userId],
   });
@@ -209,7 +209,7 @@ async function handleSubscriptionUpdated(
     subscription.billing_cycle_anchor * 1000
   ).toISOString();
 
-  await db.execute({
+  await client.execute({
     sql: `
       UPDATE subscriptions
       SET subscription_id      = ?,
@@ -238,7 +238,7 @@ async function handleSubscriptionDeleted(
       ? subscription.customer
       : subscription.customer.id;
 
-  await db.execute({
+  await client.execute({
     sql: `
       UPDATE subscriptions
       SET status             = 'cancelled',

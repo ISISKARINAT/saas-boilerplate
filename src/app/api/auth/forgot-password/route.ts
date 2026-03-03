@@ -4,7 +4,7 @@
  * Retourne toujours 200 pour éviter l'énumération d'adresses e-mail.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { client } from "@/lib/db";
 import { SignJWT } from "jose";
 import { sendResetPasswordEmail } from "@/lib/auth";
 import { z } from "zod";
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const { email } = parsed.data;
 
     // Recherche de l'utilisateur (silencieuse si absent)
-    const result = await db.execute({
+    const result = await client.execute({
       sql: "SELECT id FROM users WHERE email = ? LIMIT 1",
       args: [email],
     });

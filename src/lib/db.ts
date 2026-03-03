@@ -1,24 +1,20 @@
 /**
- * Client Turso (libSQL) — connexion à la base de données.
- * Variables requises : TURSO_DATABASE_URL, TURSO_AUTH_TOKEN
+ * Turso (libSQL) client — database connection.
+ * Required env vars: TURSO_DATABASE_URL, TURSO_AUTH_TOKEN
  */
 import { createClient as createLibSQLClient } from "@libsql/client";
+import { drizzle } from "drizzle-orm/libsql";
+import * as schema from "./db/schema";
 
-// Validation des variables d'environnement au démarrage
 const rawUrl = process.env["TURSO_DATABASE_URL"];
 const authToken = process.env["TURSO_AUTH_TOKEN"];
 
 if (!rawUrl) {
-  throw new Error("Variable d'environnement manquante : TURSO_DATABASE_URL");
+  throw new Error("Missing environment variable: TURSO_DATABASE_URL");
 }
 
-// Après la vérification, on sait que rawUrl est une chaîne non-vide
 const url: string = rawUrl;
 
-/**
- * Crée et retourne un client libSQL connecté à Turso.
- * Utilise un token si présent (prod), sinon connexion non-authentifiée (dev local).
- */
 export function createClient() {
   return createLibSQLClient({
     url,
@@ -26,5 +22,8 @@ export function createClient() {
   });
 }
 
-// Instance partagée pour toute l'application (singleton)
-export const db = createClient();
+// Raw libSQL client — use for direct SQL execution (e.g., client.execute())
+export const client = createClient();
+
+// Drizzle ORM instance with full schema — use for type-safe queries
+export const db = drizzle(client, { schema });

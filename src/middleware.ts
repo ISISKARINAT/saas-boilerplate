@@ -2,40 +2,42 @@
  * Middleware Next.js — protection des routes authentifiées.
  * Protège : /dashboard/*, /api/protected/*
  * Vérifie le JWT dans le cookie "token", redirige vers /login si invalide.
- * Transmet l'ID utilisateur via l'en-tête X-User-Id aux routes API.
+ * Rafraîchit automatiquement le token quand il expire dans moins d'1 heure.
+ * Transmet l'ID utilisateur via l'en-tête X-User-Id aux Server Components.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { jwtVerify } from "jose";
+import { jwtVerify, SignJWT } from "jose";
 
-// Routes protégées par l'authentification
+/** Seuil de rafraîchissement du token : 1 heure avant expiration */
+const TOKEN_REFRESH_THRESHOLD = 3600;
+
 const PROTECTED_ROUTES = ["/dashboard", "/api/protected"];
-
-// Routes accessibles uniquement aux utilisateurs non-authentifiés
 const AUTH_ROUTES = ["/login", "/register", "/forgot-password", "/reset-password"];
 
-/**
- * Récupère la clé secrète JWT depuis les variables d'environnement.
- */
 function getJwtSecretKey(): Uint8Array {
   const secret = process.env["JWT_SECRET"];
   if (!secret) throw new Error("JWT_SECRET manquant");
   return new TextEncoder().encode(secret);
 }
 
+/** Émet un nouveau JWT de session (Edge-safe — pas de bcrypt). */
+async function mintToken(userId: string): Promise<string> {
+  return new SignJWT({ userId })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("12h")
+    .setSubject(userId)
+    .sign(getJwtSecretKey());
+}
+
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
-
-  // Vérification si la route est protégée
-  const isProtectedRoute = PROTECTED_ROUTES.some((route) =>
-    pathname.startsWith(route)
-  );
-
-  // Récupération du token JWT depuis les cookies
   const token = request.cookies.get("token")?.value;
+
+  const isProtectedRoute = PROTECTED_ROUTES.some((r) => pathname.startsWith(r));
 
   if (isProtectedRoute) {
     if (!token) {
-      // Pas de token — redirection vers /login
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("redirect", pathname);
       return NextResponse.redirect(loginUrl);
@@ -49,29 +51,45 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
         throw new Error("userId manquant dans le payload JWT");
       }
 
-      // Transmet l'ID utilisateur aux routes API via header
       const response = NextResponse.next();
       response.headers.set("X-User-Id", userId);
+
+      // Rafraîchit le token s'il expire dans moins d'1 heure
+      const exp = payload.exp;
+      if (typeof exp === "number") {
+        const now = Math.floor(Date.now() / 1000);
+        if (exp - now < TOKEN_REFRESH_THRESHOLD) {
+          const refreshed = await mintToken(userId);
+          response.cookies.set("token", refreshed, {
+            httpOnly: true,
+            secure: process.env["NODE_ENV"] === "production",
+            sameSite: "strict",
+            maxAge: 60 * 60 * 12,
+            path: "/",
+          });
+          // Transmet également le nouveau token aux Server Components
+          response.headers.set("X-Auth-Token", refreshed);
+        }
+      }
+
       return response;
     } catch {
-      // Token invalide ou expiré — redirection vers /login
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("redirect", pathname);
       const response = NextResponse.redirect(loginUrl);
-      // Supprime le cookie invalide
       response.cookies.delete("token");
       return response;
     }
   }
 
-  // Redirige les utilisateurs déjà authentifiés loin des pages d'auth
-  const isAuthRoute = AUTH_ROUTES.some((route) => pathname.startsWith(route));
+  // Redirige les utilisateurs authentifiés loin des pages d'auth
+  const isAuthRoute = AUTH_ROUTES.some((r) => pathname.startsWith(r));
   if (isAuthRoute && token) {
     try {
       await jwtVerify(token, getJwtSecretKey());
       return NextResponse.redirect(new URL("/dashboard", request.url));
     } catch {
-      // Token invalide, laisse accéder à la page d'auth
+      // Token invalide, accès autoris à la page d'auth
     }
   }
 
