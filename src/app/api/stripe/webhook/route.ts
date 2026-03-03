@@ -98,8 +98,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         break;
       }
 
-      case "customer.subscription.updated": {
-        const subscription = event.data.object as Stripe.Subscription;
+      case "invoice.paid": {
+        const invoice = event.data.object as Stripe.Invoice;
+        await handleInvoicePaid(invoice);
+        break;
+      }
+
+      case "customer.subscription.updated": {        const subscription = event.data.object as Stripe.Subscription;
         await handleSubscriptionUpdated(subscription);
         break;
       }
@@ -336,5 +341,95 @@ async function handleSubscriptionDeleted(
   console.info("[stripe/webhook] Subscription cancelled", {
     subscriptionId: subscription.id,
     customerId,
+  });
+}
+
+/**
+ * Handles invoice.paid.
+ *
+ * Keeps subscription status "active" on renewals (subscription_cycle) and
+ * sends an invoice confirmation email for recurring billing cycles.
+ * Initial subscription invoices are already handled via checkout.session.completed.
+ */
+async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
+  const customerId =
+    typeof invoice.customer === "string"
+      ? invoice.customer
+      : (invoice.customer as Stripe.Customer | null)?.id ?? null;
+
+  if (!customerId) {
+    console.warn("[stripe/webhook] invoice.paid: missing customerId");
+    return;
+  }
+
+  // Re-activate subscription in case it was past_due before payment
+  await db
+    .update(subscriptionsTable)
+    .set({ status: "active" })
+    .where(eq(subscriptionsTable.stripeCustomerId, customerId));
+
+  console.info("[stripe/webhook] Invoice paid — subscription reactivated", {
+    invoiceId: invoice.id,
+    customerId,
+    billingReason: invoice.billing_reason,
+  });
+
+  // Only send invoice emails for recurring renewals to avoid duplicates with
+  // the checkout.session.completed handler (which covers subscription_create).
+  if (invoice.billing_reason !== "subscription_cycle") return;
+
+  // Resolve userId + plan from the subscriptions table
+  const subRows = await db
+    .select({ userId: subscriptionsTable.userId, plan: subscriptionsTable.plan })
+    .from(subscriptionsTable)
+    .where(eq(subscriptionsTable.stripeCustomerId, customerId))
+    .limit(1);
+
+  const userId = subRows[0]?.userId;
+  const plan = subRows[0]?.plan ?? "pro";
+
+  if (!userId) {
+    console.warn("[stripe/webhook] invoice.paid: userId not found for customer", { customerId });
+    return;
+  }
+
+  const userResult = await client.execute({
+    sql: "SELECT email FROM users WHERE id = ? LIMIT 1",
+    args: [userId],
+  });
+
+  const userEmail = String(userResult.rows[0]?.["email"] ?? "");
+  if (!userEmail) {
+    console.warn("[stripe/webhook] invoice.paid: email not found for user", { userId });
+    return;
+  }
+
+  const total = (invoice.amount_paid ?? 0) / 100;
+  const currency = (invoice.currency ?? "usd").toUpperCase();
+  const invoiceDate = new Date().toISOString().slice(0, 10);
+  const appUrl = process.env["NEXT_PUBLIC_APP_URL"] ?? "http://localhost:3000";
+  const invoiceNumber =
+    invoice.number ?? `INV-${invoice.id.slice(-8).toUpperCase()}`;
+
+  sendEmail(userEmail, "invoice", {
+    userName: userEmail,
+    invoiceNumber,
+    invoiceDate,
+    dueDate: invoiceDate,
+    items: [
+      {
+        description: `${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan — Renewal`,
+        quantity: 1,
+        unitPrice: total,
+      },
+    ],
+    total,
+    currency,
+    downloadUrl: `${appUrl}/billing`,
+  }).catch((err: unknown) => {
+    console.error("[stripe/webhook] Failed to send invoice email for invoice.paid", {
+      userId,
+      error: err instanceof Error ? err.message : String(err),
+    });
   });
 }

@@ -14,6 +14,7 @@ import {
   Preview,
   Row,
   Section,
+  Tailwind,
   Text,
 } from "@react-email/components";
 
@@ -65,186 +66,146 @@ export default function InvoiceEmail({
   return (
     <Html lang="en">
       <Head />
-      <Preview>Invoice {invoiceNumber} — {formatAmount(total)}</Preview>
-      <Body style={styles.body}>
-        <Container style={styles.container}>
-          {/* Header avec logo et numéro de facture */}
-          <Section style={styles.header}>
-            <Row>
-              <Column>
-                <Heading style={styles.logo}>Boilerplate</Heading>
-              </Column>
-              <Column style={{ textAlign: "right" as const }}>
-                <Text style={styles.invoiceLabel}>INVOICE</Text>
-                <Text style={styles.invoiceNumber}>{invoiceNumber}</Text>
-              </Column>
-            </Row>
-          </Section>
+      <Tailwind>
+        <Preview>Invoice {invoiceNumber} — {formatAmount(total)}</Preview>
+        <Body className="bg-[#0a0a0a] m-0 p-0" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+          <Container className="mx-auto py-8 px-4 max-w-[600px]">
 
-          {/* Métadonnées (client, dates) */}
-          <Section style={styles.metaSection}>
-            <Row>
-              <Column>
-                <Text style={styles.metaLabel}>Billed to</Text>
-                <Text style={styles.metaValue}>{userName}</Text>
-              </Column>
-              <Column style={{ textAlign: "right" as const }}>
-                <Text style={styles.metaLabel}>Invoice date</Text>
-                <Text style={styles.metaValue}>{invoiceDate}</Text>
-                <Text style={styles.metaLabel}>Due date</Text>
-                <Text style={styles.metaValue}>{dueDate}</Text>
-              </Column>
-            </Row>
-          </Section>
+            {/* Main card */}
+            <Section className="bg-[#111111] rounded-xl px-8 pt-8 pb-6 border border-[rgba(255,255,255,0.08)]">
 
-          <Hr style={styles.hr} />
-
-          {/* Tableau des lignes de facture */}
-          <Section style={styles.tableSection}>
-            <Row style={styles.tableHeader}>
-              <Column style={styles.colDescription}>
-                <Text style={styles.tableHeaderText}>Description</Text>
-              </Column>
-              <Column style={styles.colQty}>
-                <Text style={styles.tableHeaderText}>Qty</Text>
-              </Column>
-              <Column style={styles.colPrice}>
-                <Text style={styles.tableHeaderTextRight}>Amount</Text>
-              </Column>
-            </Row>
-            {items.map((item, index) => (
-              <Row key={index} style={styles.tableRow}>
-                <Column style={styles.colDescription}>
-                  <Text style={styles.tableCell}>{item.description}</Text>
+              {/* Header row: logo + invoice badge */}
+              <Row className="mb-6">
+                <Column>
+                  <Heading className="text-indigo-500 text-2xl font-bold m-0 tracking-tight">
+                    Boilerplate
+                  </Heading>
+                  <Text className="text-zinc-500 text-xs m-0 mt-1 uppercase tracking-widest">
+                    Payment Receipt
+                  </Text>
                 </Column>
-                <Column style={styles.colQty}>
-                  <Text style={styles.tableCell}>{item.quantity}</Text>
-                </Column>
-                <Column style={styles.colPrice}>
-                  <Text style={styles.tableCellRight}>
-                    {formatAmount(item.quantity * item.unitPrice)}
+                <Column style={{ textAlign: "right" as const }}>
+                  <Text className="text-zinc-500 text-[10px] font-semibold uppercase tracking-widest m-0 mb-1">
+                    Invoice
+                  </Text>
+                  <Text className="text-white text-base font-semibold m-0">
+                    {invoiceNumber}
+                  </Text>
+                  <Text className="text-emerald-500 text-xs font-medium m-0 mt-1">
+                    ✓ &nbsp;Paid
                   </Text>
                 </Column>
               </Row>
-            ))}
-          </Section>
 
-          <Hr style={styles.hr} />
+              <Hr className="border-[rgba(255,255,255,0.08)] my-5" />
 
-          {/* Total */}
-          <Section style={styles.totalSection}>
-            <Row>
-              <Column />
-              <Column style={{ textAlign: "right" as const }}>
-                <Text style={styles.totalLabel}>Total</Text>
-                <Text style={styles.totalAmount}>{formatAmount(total)}</Text>
-              </Column>
-            </Row>
-          </Section>
+              {/* Meta: billed to + dates */}
+              <Row className="mb-5">
+                <Column>
+                  <Text className="text-zinc-500 text-[10px] font-semibold uppercase tracking-widest m-0 mb-1">
+                    Billed to
+                  </Text>
+                  <Text className="text-zinc-200 text-sm font-medium m-0">
+                    {userName}
+                  </Text>
+                </Column>
+                <Column style={{ textAlign: "right" as const }}>
+                  <Text className="text-zinc-500 text-[10px] font-semibold uppercase tracking-widest m-0 mb-1">
+                    Invoice date
+                  </Text>
+                  <Text className="text-zinc-200 text-sm m-0 mb-2">{invoiceDate}</Text>
+                  <Text className="text-zinc-500 text-[10px] font-semibold uppercase tracking-widest m-0 mb-1">
+                    Due date
+                  </Text>
+                  <Text className="text-zinc-200 text-sm m-0">{dueDate}</Text>
+                </Column>
+              </Row>
 
-          {/* CTA téléchargement PDF */}
-          <Section style={styles.ctaSection}>
-            <Button href={downloadUrl} style={styles.button}>
-              Download Invoice PDF
-            </Button>
-          </Section>
+              <Hr className="border-[rgba(255,255,255,0.08)] my-5" />
 
-          <Hr style={styles.hr} />
-          <Section style={styles.footer}>
-            <Text style={styles.footerText}>
-              © {new Date().getFullYear()} Boilerplate. All rights reserved.
-            </Text>
-            <Text style={styles.footerText}>Questions? Contact us at billing@example.com</Text>
-          </Section>
-        </Container>
-      </Body>
+              {/* Line items table */}
+              <Section className="mb-4">
+                {/* Table header */}
+                <Row className="bg-[rgba(255,255,255,0.04)] rounded-md">
+                  <Column style={{ width: "60%", padding: "8px 4px" }}>
+                    <Text className="text-zinc-500 text-[10px] font-semibold uppercase tracking-widest m-0">
+                      Description
+                    </Text>
+                  </Column>
+                  <Column style={{ width: "15%", textAlign: "center" as const, padding: "8px 4px" }}>
+                    <Text className="text-zinc-500 text-[10px] font-semibold uppercase tracking-widest m-0">
+                      Qty
+                    </Text>
+                  </Column>
+                  <Column style={{ width: "25%", textAlign: "right" as const, padding: "8px 4px" }}>
+                    <Text className="text-zinc-500 text-[10px] font-semibold uppercase tracking-widest m-0">
+                      Amount
+                    </Text>
+                  </Column>
+                </Row>
+
+                {/* Table rows */}
+                {items.map((item, index) => (
+                  <Row key={index} className="border-b border-[rgba(255,255,255,0.05)]">
+                    <Column style={{ width: "60%", padding: "10px 4px" }}>
+                      <Text className="text-zinc-300 text-sm m-0">{item.description}</Text>
+                    </Column>
+                    <Column style={{ width: "15%", textAlign: "center" as const, padding: "10px 4px" }}>
+                      <Text className="text-zinc-300 text-sm m-0">{item.quantity}</Text>
+                    </Column>
+                    <Column style={{ width: "25%", textAlign: "right" as const, padding: "10px 4px" }}>
+                      <Text className="text-zinc-300 text-sm m-0">
+                        {formatAmount(item.quantity * item.unitPrice)}
+                      </Text>
+                    </Column>
+                  </Row>
+                ))}
+              </Section>
+
+              <Hr className="border-[rgba(255,255,255,0.08)] my-4" />
+
+              {/* Total */}
+              <Row className="mb-8">
+                <Column />
+                <Column style={{ textAlign: "right" as const }}>
+                  <Text className="text-zinc-400 text-sm font-medium m-0 mb-1">
+                    Total paid
+                  </Text>
+                  <Text className="text-white text-3xl font-bold m-0">
+                    {formatAmount(total)}
+                  </Text>
+                </Column>
+              </Row>
+
+              {/* Download CTA */}
+              <Section className="text-center pb-2">
+                <Button
+                  href={downloadUrl}
+                  className="bg-indigo-600 text-white text-sm font-semibold rounded-lg px-8 py-3 no-underline inline-block"
+                >
+                  ↓ &nbsp;Download Invoice PDF
+                </Button>
+              </Section>
+
+            </Section>
+
+            <Hr className="border-[rgba(255,255,255,0.08)] my-6" />
+
+            {/* Footer */}
+            <Section className="text-center px-2">
+              <Text className="text-zinc-600 text-xs leading-relaxed m-0 mb-1">
+                © {new Date().getFullYear()} Boilerplate. All rights reserved.
+              </Text>
+              <Text className="text-zinc-600 text-xs leading-relaxed m-0">
+                Questions? Contact us at billing@example.com
+              </Text>
+            </Section>
+
+          </Container>
+        </Body>
+      </Tailwind>
     </Html>
   );
 }
 
-const styles = {
-  body: {
-    backgroundColor: "#0a0a0a",
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-  },
-  container: {
-    margin: "0 auto",
-    padding: "20px 24px 48px",
-    maxWidth: "600px",
-    backgroundColor: "#111111",
-    borderRadius: "12px",
-    border: "1px solid rgba(255,255,255,0.08)",
-  },
-  header: { padding: "32px 0 16px" },
-  logo: { color: "#6366f1", fontSize: "24px", fontWeight: "700", margin: "0" },
-  invoiceLabel: {
-    color: "#71717a",
-    fontSize: "11px",
-    fontWeight: "600",
-    letterSpacing: "2px",
-    textTransform: "uppercase" as const,
-    margin: "0 0 4px",
-  },
-  invoiceNumber: { color: "#ffffff", fontSize: "16px", fontWeight: "600", margin: "0" },
-  metaSection: { padding: "8px 0 16px" },
-  metaLabel: {
-    color: "#71717a",
-    fontSize: "12px",
-    fontWeight: "500",
-    textTransform: "uppercase" as const,
-    letterSpacing: "1px",
-    margin: "0 0 2px",
-  },
-  metaValue: { color: "#d4d4d8", fontSize: "14px", fontWeight: "500", margin: "0 0 8px" },
-  hr: { borderColor: "rgba(255,255,255,0.08)", margin: "16px 0" },
-  tableSection: { padding: "8px 0" },
-  tableHeader: { backgroundColor: "rgba(255,255,255,0.04)", borderRadius: "6px", padding: "8px 0" },
-  tableHeaderText: {
-    color: "#71717a",
-    fontSize: "12px",
-    fontWeight: "600",
-    textTransform: "uppercase" as const,
-    letterSpacing: "1px",
-    margin: "0",
-    padding: "8px 4px",
-  },
-  tableHeaderTextRight: {
-    color: "#71717a",
-    fontSize: "12px",
-    fontWeight: "600",
-    textTransform: "uppercase" as const,
-    letterSpacing: "1px",
-    margin: "0",
-    padding: "8px 4px",
-    textAlign: "right" as const,
-  },
-  tableRow: { borderBottom: "1px solid rgba(255,255,255,0.04)" },
-  tableCell: { color: "#d4d4d8", fontSize: "14px", lineHeight: "1.5", margin: "0", padding: "10px 4px" },
-  tableCellRight: {
-    color: "#d4d4d8",
-    fontSize: "14px",
-    lineHeight: "1.5",
-    margin: "0",
-    padding: "10px 4px",
-    textAlign: "right" as const,
-  },
-  colDescription: { width: "60%" },
-  colQty: { width: "15%", textAlign: "center" as const },
-  colPrice: { width: "25%", textAlign: "right" as const },
-  totalSection: { padding: "8px 0 16px" },
-  totalLabel: { color: "#a1a1aa", fontSize: "14px", fontWeight: "500", margin: "0 0 4px" },
-  totalAmount: { color: "#ffffff", fontSize: "28px", fontWeight: "700", margin: "0" },
-  ctaSection: { textAlign: "center" as const, padding: "16px 0" },
-  button: {
-    backgroundColor: "#6366f1",
-    borderRadius: "8px",
-    color: "#ffffff",
-    fontSize: "15px",
-    fontWeight: "600",
-    textDecoration: "none",
-    padding: "12px 28px",
-    display: "inline-block",
-  },
-  footer: { textAlign: "center" as const },
-  footerText: { color: "#52525b", fontSize: "13px", lineHeight: "1.5", margin: "0 0 4px" },
-} as const;
+

@@ -137,12 +137,19 @@ export async function createCheckoutSession({
     ? "subscription"
     : "payment";
 
+  // Derive the plan name from the priceId for webhook metadata
+  const plan = getPlanByPriceId(priceId);
+
   return stripe.checkout.sessions.create({
     customer: customerId,
     client_reference_id: userId,
     mode,
     payment_method_types: ["card"],
     line_items: [{ price: priceId, quantity: 1 }],
+    metadata: {
+      user_id: userId,
+      plan,
+    },
     success_url: successUrl,
     cancel_url: cancelUrl,
   });
