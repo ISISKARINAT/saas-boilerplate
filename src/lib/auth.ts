@@ -4,6 +4,7 @@
  */
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
+import { sendEmail } from "@/lib/email";
 
 // Nombre de rounds bcrypt (12 = bon équilibre sécurité/performance en 2024)
 const BCRYPT_ROUNDS = 12;
@@ -77,4 +78,24 @@ export async function verifyToken(
     // Token expiré, signature invalide ou malformé
     return null;
   }
+}
+
+/**
+ * Envoie un e-mail de réinitialisation de mot de passe à l'utilisateur.
+ * L'e-mail contient un lien avec un token JWT valide 1 heure.
+ *
+ * @param email - Adresse e-mail du destinataire
+ * @param resetToken - Token JWT de réinitialisation (signé, expiration 1h)
+ */
+export async function sendResetPasswordEmail(
+  email: string,
+  resetToken: string
+): Promise<void> {
+  const appUrl = process.env["NEXT_PUBLIC_APP_URL"] ?? "http://localhost:3000";
+  const resetUrl = `${appUrl}/reset-password?token=${resetToken}`;
+
+  await sendEmail(email, "reset-password", {
+    userName: email.split("@")[0] ?? email,
+    resetUrl,
+  });
 }

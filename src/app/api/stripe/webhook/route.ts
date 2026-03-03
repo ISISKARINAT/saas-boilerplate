@@ -18,6 +18,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { db } from "@/lib/db";
+import { sendEmail } from "@/lib/email";
 
 /**
  * Désactive le body parsing automatique de Next.js pour conserver le raw body.
@@ -116,6 +117,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 /**
  * Gère l'événement checkout.session.completed.
  * Crée ou met à jour l'enregistrement subscription avec le Customer ID Stripe.
+ * Envoie un email de facture au client après le paiement.
  */
 async function handleCheckoutCompleted(
   session: Stripe.Checkout.Session
@@ -153,6 +155,40 @@ async function handleCheckoutCompleted(
   });
 
   console.info("[stripe/webhook] Abonnement activé", { userId });
+
+  // Récupération de l'email utilisateur pour l'envoi de la facture
+  const userResult = await db.execute({
+    sql: "SELECT email FROM users WHERE id = ? LIMIT 1",
+    args: [userId],
+  });
+
+  const userEmail = String(userResult.rows[0]?.["email"] ?? "");
+  if (!userEmail) {
+    console.warn("[stripe/webhook] Email utilisateur introuvable pour InvoiceEmail", { userId });
+    return;
+  }
+
+  // Montant en unité monétaire (Stripe retourne les centimes)
+  const total = (session.amount_total ?? 0) / 100;
+  const currency = (session.currency ?? "usd").toUpperCase();
+  const invoiceDate = new Date().toISOString().slice(0, 10);
+  const appUrl = process.env["NEXT_PUBLIC_APP_URL"] ?? "http://localhost:3000";
+
+  sendEmail(userEmail, "invoice", {
+    userName: userEmail,
+    invoiceNumber: `INV-${session.id.slice(-8).toUpperCase()}`,
+    invoiceDate,
+    dueDate: invoiceDate,
+    items: [{ description: "Pro Plan — Monthly", quantity: 1, unitPrice: total }],
+    total,
+    currency,
+    downloadUrl: `${appUrl}/billing`,
+  }).catch((err: unknown) => {
+    console.error("[stripe/webhook] Échec envoi InvoiceEmail", {
+      userId,
+      error: err instanceof Error ? err.message : "Erreur inconnue",
+    });
+  });
 }
 
 /**

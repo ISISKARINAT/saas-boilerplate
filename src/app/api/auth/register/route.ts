@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { hashPassword, createToken } from "@/lib/auth";
+import { sendEmail } from "@/lib/email";
 import { z } from "zod";
 
 // Schéma de validation de la requête
@@ -51,6 +52,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const userId = String(insertResult.rows[0]?.["id"]);
     const token = await createToken(userId);
+
+    // Envoi de l'email de bienvenue (non bloquant)
+    const appUrl = process.env["NEXT_PUBLIC_APP_URL"] ?? "http://localhost:3000";
+    sendEmail(email, "welcome", {
+      userName: email.split("@")[0] ?? email,
+      ctaUrl: `${appUrl}/dashboard`,
+    }).catch((err: unknown) => {
+      console.error("[register] Échec envoi WelcomeEmail", {
+        email,
+        error: err instanceof Error ? err.message : "Erreur inconnue",
+      });
+    });
 
     const response = NextResponse.json(
       { userId, email },
