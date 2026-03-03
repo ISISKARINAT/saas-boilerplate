@@ -4,7 +4,8 @@
  * Displays a greeting header, metric cards, onboarding flow, and recent activity.
  */
 import { headers } from "next/headers";
-import { DollarSign, Users, CreditCard, Activity, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import type { Metadata } from "next";
+import { DollarSign, Users, CreditCard, Activity, ArrowUpRight, ArrowDownRight, TrendingUp } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -20,10 +21,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { OnboardingBanner } from "./_components/OnboardingBanner";
 import { OnboardingFlow } from "./_components/OnboardingFlow";
 import { getDashboardMetrics } from "@/lib/dashboard";
 
 const ACTIVITY_COLUMNS = ["Event", "User", "Date", "Status"] as const;
+
+export const metadata: Metadata = {
+  title: "Dashboard",
+  description: "Your SaaS analytics dashboard — monitor MRR, users, and subscriptions.",
+  robots: { index: false, follow: false },
+};
 const PLACEHOLDER_ROWS = Array.from({ length: 5 }, (_, i) => i);
 
 function formatMrr(cents: number): string {
@@ -78,6 +86,17 @@ export default async function DashboardPage() {
       changePercent: metrics.activeSubscriptions.changePercent,
       icon: <CreditCard className="h-5 w-5 text-muted-foreground" />,
     },
+    {
+      title: "Conversion Rate",
+      subtitle: "Free → paid conversion",
+      value:
+        metrics.totalUsers.value > 0
+          ? `${((metrics.activeSubscriptions.value / metrics.totalUsers.value) * 100).toFixed(1)}%`
+          : "—",
+      changePercent:
+        metrics.activeSubscriptions.changePercent - metrics.totalUsers.changePercent,
+      icon: <TrendingUp className="h-5 w-5 text-muted-foreground" />,
+    },
   ];
 
   return (
@@ -95,9 +114,12 @@ export default async function DashboardPage() {
         </p>
       </div>
 
+      {/* Onboarding welcome banner */}
+      <OnboardingBanner />
+
       {/* KPI Cards */}
       <section aria-label="Key Performance Indicators">
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           {kpiCards.map((card) => {
             const isPositive = card.changePercent >= 0;
             return (

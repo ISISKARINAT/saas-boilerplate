@@ -12,6 +12,7 @@ import {
   Html,
   Preview,
   Section,
+  Tailwind,
   Text,
 } from "@react-email/components";
 
@@ -34,93 +35,82 @@ export default function ResetPasswordEmail({
   return (
     <Html lang="en">
       <Head />
-      <Preview>Reset your Boilerplate password</Preview>
-      <Body style={styles.body}>
-        <Container style={styles.container}>
-          <Section style={styles.header}>
-            <Heading style={styles.logo}>Boilerplate</Heading>
-          </Section>
-          <Section style={styles.main}>
-            <Heading style={styles.heading}>Reset your password</Heading>
-            <Text style={styles.text}>Hi {userName},</Text>
-            <Text style={styles.text}>
-              We received a request to reset the password for your account.
-              Click the button below to choose a new password.
-            </Text>
-            <Section style={styles.buttonContainer}>
-              <Button href={resetUrl} style={styles.button}>
-                Reset Password
-              </Button>
+      <Tailwind>
+        <Preview>Reset your Boilerplate password</Preview>
+        <Body className="bg-[#0a0a0a] m-0 p-0" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+          <Container className="mx-auto py-8 px-4 max-w-[580px]">
+
+            {/* Header */}
+            <Section className="text-center pb-6">
+              <Heading className="text-indigo-500 text-2xl font-bold m-0 tracking-tight">
+                Boilerplate
+              </Heading>
             </Section>
-            <Section style={styles.warningBox}>
-              <Text style={styles.warningText}>
-                ⏱ This link expires in{" "}
-                <strong style={{ color: "#fbbf24" }}>1 hour</strong>.
+
+            {/* Main card */}
+            <Section className="bg-[#111111] rounded-xl px-8 py-10 border border-[rgba(255,255,255,0.08)]">
+              {/* Lock icon badge */}
+              <Section className="text-center mb-6">
+                <Text className="text-4xl m-0">🔐</Text>
+              </Section>
+
+              <Heading className="text-white text-[26px] font-bold leading-snug m-0 mb-5">
+                Reset your password
+              </Heading>
+              <Text className="text-zinc-400 text-sm leading-relaxed m-0 mb-2">
+                Hi {userName},
               </Text>
-              <Text style={styles.warningText}>
-                If you didn&apos;t request a password reset, you can safely
-                ignore this email — your password will not be changed.
+              <Text className="text-zinc-400 text-sm leading-relaxed m-0 mb-8">
+                We received a request to reset the password for your Boilerplate account.
+                Click the button below to choose a new password. If you didn&apos;t make
+                this request, you can safely ignore this email.
               </Text>
-              <Text style={styles.warningText}>
-                For your security, never share this link with anyone.
+
+              {/* CTA */}
+              <Section className="text-center mb-8">
+                <Button
+                  href={resetUrl}
+                  className="bg-indigo-600 text-white text-base font-semibold rounded-lg px-10 py-3 no-underline inline-block"
+                >
+                  Reset Password
+                </Button>
+              </Section>
+
+              {/* Warning box */}
+              <Section className="bg-[rgba(251,191,36,0.07)] rounded-lg border border-[rgba(251,191,36,0.2)] px-5 py-4 mb-6">
+                <Text className="text-zinc-300 text-sm leading-relaxed m-0 mb-1">
+                  ⏱ &nbsp;This link expires in <strong style={{ color: "#fbbf24" }}>1 hour</strong>.
+                </Text>
+                <Text className="text-zinc-400 text-sm leading-relaxed m-0 mb-1">
+                  🔒 &nbsp;For your security, never share this link with anyone.
+                </Text>
+                <Text className="text-zinc-400 text-sm leading-relaxed m-0">
+                  🚫 &nbsp;Your password will <em>not</em> be changed if you ignore this email.
+                </Text>
+              </Section>
+
+              <Hr className="border-[rgba(255,255,255,0.08)] my-5" />
+
+              <Text className="text-zinc-600 text-xs leading-relaxed m-0 mb-1">
+                If the button doesn&apos;t work, copy and paste this URL into your browser:
+              </Text>
+              <Text className="text-indigo-500 text-xs m-0" style={{ wordBreak: "break-all" }}>
+                {resetUrl}
               </Text>
             </Section>
-            <Hr style={styles.hr} />
-            <Text style={styles.smallText}>
-              If the button above doesn&apos;t work, copy and paste this URL into your browser:
-            </Text>
-            <Text style={styles.urlText}>{resetUrl}</Text>
-          </Section>
-          <Section style={styles.footer}>
-            <Hr style={styles.hr} />
-            <Text style={styles.footerText}>
-              © {new Date().getFullYear()} Boilerplate. All rights reserved.
-            </Text>
-          </Section>
-        </Container>
-      </Body>
+
+            <Hr className="border-[rgba(255,255,255,0.08)] my-6" />
+
+            {/* Footer */}
+            <Section className="text-center px-2">
+              <Text className="text-zinc-600 text-xs leading-relaxed m-0">
+                © {new Date().getFullYear()} Boilerplate. All rights reserved.
+              </Text>
+            </Section>
+
+          </Container>
+        </Body>
+      </Tailwind>
     </Html>
   );
 }
-
-const styles = {
-  body: {
-    backgroundColor: "#0a0a0a",
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-  },
-  container: { margin: "0 auto", padding: "20px 0 48px", maxWidth: "580px" },
-  header: { padding: "24px 0 0", textAlign: "center" as const },
-  logo: { color: "#6366f1", fontSize: "24px", fontWeight: "700", margin: "0 0 24px" },
-  main: {
-    backgroundColor: "#111111",
-    borderRadius: "12px",
-    padding: "40px 32px",
-    border: "1px solid rgba(255,255,255,0.08)",
-  },
-  heading: { color: "#ffffff", fontSize: "26px", fontWeight: "700", lineHeight: "1.3", margin: "0 0 20px" },
-  text: { color: "#a1a1aa", fontSize: "15px", lineHeight: "1.6", margin: "0 0 12px" },
-  buttonContainer: { textAlign: "center" as const, margin: "28px 0" },
-  button: {
-    backgroundColor: "#6366f1",
-    borderRadius: "8px",
-    color: "#ffffff",
-    fontSize: "16px",
-    fontWeight: "600",
-    textDecoration: "none",
-    padding: "12px 32px",
-    display: "inline-block",
-  },
-  warningBox: {
-    backgroundColor: "rgba(251,191,36,0.08)",
-    borderRadius: "8px",
-    border: "1px solid rgba(251,191,36,0.2)",
-    padding: "16px",
-    margin: "0 0 24px",
-  },
-  warningText: { color: "#d4d4d8", fontSize: "14px", lineHeight: "1.6", margin: "0 0 6px" },
-  hr: { borderColor: "rgba(255,255,255,0.08)", margin: "20px 0" },
-  smallText: { color: "#71717a", fontSize: "13px", lineHeight: "1.5", margin: "0 0 6px" },
-  urlText: { color: "#6366f1", fontSize: "12px", wordBreak: "break-all" as const, margin: "0" },
-  footer: { padding: "0 8px", textAlign: "center" as const },
-  footerText: { color: "#52525b", fontSize: "13px", lineHeight: "1.5", margin: "0 0 4px" },
-} as const;
