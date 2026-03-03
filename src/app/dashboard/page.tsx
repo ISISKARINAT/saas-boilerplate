@@ -4,7 +4,7 @@
  * Displays a greeting header, metric cards, onboarding flow, and recent activity.
  */
 import { headers } from "next/headers";
-import { DollarSign, Users, TrendingUp, Activity, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { DollarSign, Users, CreditCard, Activity, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -59,24 +59,24 @@ export default async function DashboardPage() {
   const kpiCards = [
     {
       title: "Monthly Recurring Revenue",
-      subtitle: "MRR",
+      subtitle: "MRR — active plans",
       value: formatMrr(metrics.mrr.value),
       changePercent: metrics.mrr.changePercent,
       icon: <DollarSign className="h-5 w-5 text-muted-foreground" />,
     },
     {
-      title: "Active Users",
-      subtitle: "Last 30 days",
-      value: formatActiveUsers(metrics.activeUsers.value),
-      changePercent: metrics.activeUsers.changePercent,
+      title: "Total Users",
+      subtitle: "All registered accounts",
+      value: formatActiveUsers(metrics.totalUsers.value),
+      changePercent: metrics.totalUsers.changePercent,
       icon: <Users className="h-5 w-5 text-muted-foreground" />,
     },
     {
-      title: "Conversion Rate",
-      subtitle: "Visitors → paid",
-      value: `${metrics.conversionRate.value.toFixed(1)}%`,
-      changePercent: metrics.conversionRate.changePercent,
-      icon: <TrendingUp className="h-5 w-5 text-muted-foreground" />,
+      title: "Active Subscriptions",
+      subtitle: "Status = active",
+      value: formatActiveUsers(metrics.activeSubscriptions.value),
+      changePercent: metrics.activeSubscriptions.changePercent,
+      icon: <CreditCard className="h-5 w-5 text-muted-foreground" />,
     },
   ];
 
