@@ -59,7 +59,7 @@ export async function loginAction(
     const { email, password } = parsed.data;
 
     const result = await client.execute({
-      sql: "SELECT id, hashed_password FROM users WHERE email = ? LIMIT 1",
+      sql: "SELECT id, password_hash FROM users WHERE email = ? LIMIT 1",
       args: [email],
     });
 
@@ -68,7 +68,7 @@ export async function loginAction(
       return { error: "Identifiants incorrects" };
     }
 
-    const isValid = await verifyPassword(password, String(row["hashed_password"]));
+    const isValid = await verifyPassword(password, String(row["password_hash"]));
     if (!isValid) {
       return { error: "Identifiants incorrects" };
     }
@@ -125,8 +125,8 @@ export async function registerAction(
 
     const hashedPassword = await hashPassword(password);
     const insertResult = await client.execute({
-      sql: "INSERT INTO users (email, hashed_password) VALUES (?, ?) RETURNING id",
-      args: [email, hashedPassword],
+      sql: "INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?) RETURNING id",
+      args: [email, hashedPassword, ""],
     });
 
     const userId = String(insertResult.rows[0]?.["id"]);
@@ -236,7 +236,7 @@ export async function resetPasswordAction(
     const hashedPassword = await hashPassword(password);
 
     await client.execute({
-      sql: "UPDATE users SET hashed_password = ?, updated_at = datetime('now') WHERE id = ?",
+      sql: "UPDATE users SET password_hash = ? WHERE id = ?",
       args: [hashedPassword, userId],
     });
   } catch {

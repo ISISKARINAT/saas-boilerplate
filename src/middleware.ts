@@ -7,8 +7,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAuthToken } from "@/lib/auth";
 
-export const runtime = "nodejs";
-
 const PROTECTED_ROUTES: string[] = ["/dashboard"];
 const AUTH_ROUTES: string[] = ["/login", "/register"];
 

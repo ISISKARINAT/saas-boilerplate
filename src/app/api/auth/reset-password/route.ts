@@ -55,7 +55,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Mise à jour du mot de passe
     const hashedPassword = await hashPassword(password);
     await client.execute({
-      sql: "UPDATE users SET hashed_password = ?, updated_at = datetime('now') WHERE id = ?",
+      sql: "UPDATE users SET password_hash = ? WHERE id = ?",
       args: [hashedPassword, userId],
     });
 

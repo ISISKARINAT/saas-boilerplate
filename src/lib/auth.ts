@@ -45,13 +45,6 @@ export async function verifyPassword(
   return bcrypt.compare(password, hash);
 }
 
-export async function comparePassword(
-  password: string,
-  hashedPassword: string
-): Promise<boolean> {
-  return bcrypt.compare(password, hashedPassword);
-}
-
 /**
  * Crée un token JWT signé pour un utilisateur.
  * @param userId - Identifiant de l'utilisateur
@@ -63,14 +56,6 @@ export async function createToken(userId: string): Promise<string> {
     .setIssuedAt()
     .setExpirationTime(TOKEN_EXPIRY)
     .setSubject(userId)
-    .sign(getJwtSecretKey());
-}
-
-export async function createJWT(userId: string): Promise<string> {
-  return new SignJWT({ userId })
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
-    .setExpirationTime(TOKEN_EXPIRY)
     .sign(getJwtSecretKey());
 }
 
@@ -92,28 +77,8 @@ export async function verifyToken(
   }
 }
 
-export async function verifyJWT(
-  token: string
-): Promise<{ userId: string } | null> {
-  try {
-    const { payload } = await jwtVerify(token, getJwtSecretKey());
-    if (typeof payload["userId"] !== "string") return null;
-    return { userId: payload["userId"] };
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Valide un token JWT d'authentification (alias de verifyToken).
- * @param token - Token JWT à vérifier
- * @returns Payload { userId } ou null si invalide/expiré
- */
-export async function verifyAuthToken(
-  token: string
-): Promise<{ userId: string } | null> {
-  return verifyToken(token);
-}
+/** Alias of verifyToken for middleware use. */
+export const verifyAuthToken = verifyToken;
 
 /**
  * Envoie un e-mail de réinitialisation de mot de passe à l'utilisateur.
