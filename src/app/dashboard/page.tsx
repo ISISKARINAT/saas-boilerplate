@@ -1,15 +1,10 @@
 /**
  * Main analytics dashboard page — Server Component.
- * Displays a welcome message, key metric cards, onboarding flow, and a recent activity placeholder.
+ * Fetches KPI metrics via getDashboardMetrics() (mock now, Turso-ready).
+ * Displays a greeting header, metric cards, onboarding flow, and recent activity.
  */
 import { headers } from "next/headers";
-import {
-  DollarSign,
-  Users,
-  TrendingUp,
-  UserMinus,
-  Activity,
-} from "lucide-react";
+import { DollarSign, Users, TrendingUp, Activity, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -17,7 +12,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -27,97 +21,124 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { OnboardingFlow } from "./_components/OnboardingFlow";
-
-interface MetricCard {
-  title: string;
-  value: string;
-  trend: string;
-  trendUp: boolean;
-  icon: React.ReactNode;
-}
-
-const METRIC_CARDS: MetricCard[] = [
-  {
-    title: "Total Revenue",
-    value: "$0.00",
-    trend: "+0% from last month",
-    trendUp: true,
-    icon: <DollarSign className="h-5 w-5 text-muted-foreground" />,
-  },
-  {
-    title: "Active Users",
-    value: "0",
-    trend: "+0% from last month",
-    trendUp: true,
-    icon: <Users className="h-5 w-5 text-muted-foreground" />,
-  },
-  {
-    title: "Conversions",
-    value: "0%",
-    trend: "+0% from last month",
-    trendUp: true,
-    icon: <TrendingUp className="h-5 w-5 text-muted-foreground" />,
-  },
-  {
-    title: "Churn Rate",
-    value: "0%",
-    trend: "0% from last month",
-    trendUp: false,
-    icon: <UserMinus className="h-5 w-5 text-muted-foreground" />,
-  },
-];
+import { getDashboardMetrics } from "@/lib/dashboard";
 
 const ACTIVITY_COLUMNS = ["Event", "User", "Date", "Status"] as const;
 const PLACEHOLDER_ROWS = Array.from({ length: 5 }, (_, i) => i);
 
+function formatMrr(cents: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(cents / 100);
+}
+
+function formatActiveUsers(n: number): string {
+  return new Intl.NumberFormat("en-US").format(n);
+}
+
+function formatDate(date: Date): string {
+  return date.toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
 export default async function DashboardPage() {
-  const headersList = await headers();
-  const userId = headersList.get("X-User-Id") ?? "User";
+  const [headersList, metrics] = await Promise.all([
+    headers(),
+    getDashboardMetrics(),
+  ]);
+
+  const userId = headersList.get("X-User-Id") ?? "there";
+  const today = formatDate(new Date());
+
+  const kpiCards = [
+    {
+      title: "Monthly Recurring Revenue",
+      subtitle: "MRR",
+      value: formatMrr(metrics.mrr.value),
+      changePercent: metrics.mrr.changePercent,
+      icon: <DollarSign className="h-5 w-5 text-muted-foreground" />,
+    },
+    {
+      title: "Active Users",
+      subtitle: "Last 30 days",
+      value: formatActiveUsers(metrics.activeUsers.value),
+      changePercent: metrics.activeUsers.changePercent,
+      icon: <Users className="h-5 w-5 text-muted-foreground" />,
+    },
+    {
+      title: "Conversion Rate",
+      subtitle: "Visitors → paid",
+      value: `${metrics.conversionRate.value.toFixed(1)}%`,
+      changePercent: metrics.conversionRate.changePercent,
+      icon: <TrendingUp className="h-5 w-5 text-muted-foreground" />,
+    },
+  ];
 
   return (
     <div className="space-y-8">
-      {/* Page heading */}
-      <div>
-        <h1 className="text-4xl font-bold tracking-tight">
-          Dashboard Overview
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Welcome back, {userId}. Here&apos;s a snapshot of your key metrics.
+      {/* Header */}
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-sm font-medium text-muted-foreground">{today}</p>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Good day, {userId} 👋
+          </h1>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Here&apos;s a snapshot of your key metrics.
         </p>
       </div>
 
-      {/* Metrics Overview */}
-      <section aria-label="Metrics Overview">
-        <h2 className="mb-4 text-xl font-semibold tracking-tight">
-          Metrics Overview
-        </h2>
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
-          {METRIC_CARDS.map((card) => (
-            <Card
-              key={card.title}
-              className="transition-shadow hover:shadow-md dark:hover:shadow-primary/10"
-            >
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardDescription className="text-sm font-medium">
-                    {card.title}
-                  </CardDescription>
-                  {card.icon}
-                </div>
-                <CardTitle className="text-3xl font-bold">
-                  {card.value}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Badge
-                  variant={card.trendUp ? "default" : "destructive"}
-                  className="text-xs font-normal"
-                >
-                  {card.trend}
-                </Badge>
-              </CardContent>
-            </Card>
-          ))}
+      {/* KPI Cards */}
+      <section aria-label="Key Performance Indicators">
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
+          {kpiCards.map((card) => {
+            const isPositive = card.changePercent >= 0;
+            return (
+              <Card
+                key={card.title}
+                className="transition-shadow hover:shadow-md dark:hover:shadow-primary/10"
+              >
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardDescription className="text-sm font-medium">
+                      {card.title}
+                    </CardDescription>
+                    {card.icon}
+                  </div>
+                  <CardTitle className="text-3xl font-bold">
+                    {card.value}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div
+                    className={`flex items-center gap-1 text-xs font-medium ${
+                      isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"
+                    }`}
+                  >
+                    {isPositive ? (
+                      <ArrowUpRight className="h-3.5 w-3.5" />
+                    ) : (
+                      <ArrowDownRight className="h-3.5 w-3.5" />
+                    )}
+                    <span>
+                      {isPositive ? "+" : ""}
+                      {card.changePercent.toFixed(1)}% vs last month
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {card.subtitle}
+                  </p>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </section>
 
