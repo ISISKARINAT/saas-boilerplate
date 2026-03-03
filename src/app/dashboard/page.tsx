@@ -17,6 +17,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface MetricCard {
   title: string;
@@ -58,7 +66,6 @@ const METRIC_CARDS: MetricCard[] = [
 ];
 
 const ACTIVITY_COLUMNS = ["Event", "User", "Date", "Status"] as const;
-
 const PLACEHOLDER_ROWS = Array.from({ length: 5 }, (_, i) => i);
 
 export default async function DashboardPage() {
@@ -69,7 +76,7 @@ export default async function DashboardPage() {
     <div className="space-y-8">
       {/* Page heading */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">
+        <h1 className="text-4xl font-bold tracking-tight">
           Dashboard Overview
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -84,22 +91,24 @@ export default async function DashboardPage() {
             <Card key={card.title}>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardDescription>{card.title}</CardDescription>
+                  <CardDescription className="text-lg font-semibold">
+                    {card.title}
+                  </CardDescription>
                   {card.icon}
                 </div>
-                <CardTitle className="text-2xl font-bold">
+                <CardTitle className="text-4xl font-bold">
                   {card.value}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-xs text-muted-foreground">{card.trend}</p>
+                <p className="text-sm text-muted-foreground">{card.trend}</p>
               </CardContent>
             </Card>
           ))}
         </div>
       </section>
 
-      {/* Recent activity placeholder */}
+      {/* Recent activity */}
       <section aria-label="Recent activity">
         <Card>
           <CardHeader>
@@ -112,33 +121,26 @@ export default async function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    {ACTIVITY_COLUMNS.map((col) => (
-                      <th
-                        key={col}
-                        className="pb-3 text-left font-medium text-muted-foreground"
-                      >
-                        {col}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {PLACEHOLDER_ROWS.map((i) => (
-                    <tr key={i} className="border-b last:border-0">
-                      {ACTIVITY_COLUMNS.map((col) => (
-                        <td key={col} className="py-3 pr-4">
-                          <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-                        </td>
-                      ))}
-                    </tr>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {ACTIVITY_COLUMNS.map((col) => (
+                    <TableHead key={col}>{col}</TableHead>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {PLACEHOLDER_ROWS.map((i) => (
+                  <TableRow key={i}>
+                    {ACTIVITY_COLUMNS.map((col) => (
+                      <TableCell key={col}>
+                        <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
       </section>

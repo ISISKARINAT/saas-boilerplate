@@ -1,9 +1,6 @@
-/**
- * Utilitaires d'authentification : hachage de mots de passe et tokens JWT.
- * Utilise bcryptjs pour le hachage et jose pour les JWT.
- */
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
+import { db, type User, type Session } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
 
 // Nombre de rounds bcrypt (12 = bon équilibre sécurité/performance en 2024)
@@ -48,6 +45,13 @@ export async function verifyPassword(
   return bcrypt.compare(password, hash);
 }
 
+export async function comparePassword(
+  password: string,
+  hashedPassword: string
+): Promise<boolean> {
+  return bcrypt.compare(password, hashedPassword);
+}
+
 /**
  * Crée un token JWT signé pour un utilisateur.
  * @param userId - Identifiant de l'utilisateur
@@ -59,6 +63,14 @@ export async function createToken(userId: string): Promise<string> {
     .setIssuedAt()
     .setExpirationTime(TOKEN_EXPIRY)
     .setSubject(userId)
+    .sign(getJwtSecretKey());
+}
+
+export async function createJWT(userId: string): Promise<string> {
+  return new SignJWT({ userId })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime(TOKEN_EXPIRY)
     .sign(getJwtSecretKey());
 }
 
@@ -80,6 +92,29 @@ export async function verifyToken(
   }
 }
 
+export async function verifyJWT(
+  token: string
+): Promise<{ userId: string } | null> {
+  try {
+    const { payload } = await jwtVerify(token, getJwtSecretKey());
+    if (typeof payload["userId"] !== "string") return null;
+    return { userId: payload["userId"] };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Valide un token JWT d'authentification (alias de verifyToken).
+ * @param token - Token JWT à vérifier
+ * @returns Payload { userId } ou null si invalide/expiré
+ */
+export async function verifyAuthToken(
+  token: string
+): Promise<{ userId: string } | null> {
+  return verifyToken(token);
+}
+
 /**
  * Envoie un e-mail de réinitialisation de mot de passe à l'utilisateur.
  * L'e-mail contient un lien avec un token JWT valide 1 heure.
@@ -98,4 +133,72 @@ export async function sendResetPasswordEmail(
     userName: email.split("@")[0] ?? email,
     resetUrl,
   });
+}
+
+// ---------------------------------------------------------------------------
+// Session management (persisted in the `sessions` table)
+// ---------------------------------------------------------------------------
+
+/**
+ * Crée une entrée en base pour une session utilisateur.
+ * @param userId - Identifiant de l'utilisateur
+ * @param token  - Token JWT émis pour cette session
+ * @param expiresAt - Date d'expiration
+ * @returns La session créée
+ */
+export async function createSession(
+  userId: string,
+  token: string,
+  expiresAt: Date
+): Promise<Session> {
+  const id = crypto.randomUUID();
+  await db.execute({
+    sql: "INSERT INTO sessions (id, user_id, token, expires_at) VALUES (?, ?, ?, ?)",
+    args: [id, userId, token, expiresAt.toISOString()],
+  });
+  return { id, userId, token, expiresAt: expiresAt.toISOString() };
+}
+
+/**
+ * Supprime une session en base (déconnexion).
+ * @param token - Token JWT de la session à supprimer
+ */
+export async function deleteSession(token: string): Promise<void> {
+  await db.execute({
+    sql: "DELETE FROM sessions WHERE token = ?",
+    args: [token],
+  });
+}
+
+/**
+ * Récupère l'utilisateur associé à un token de session valide (non expiré).
+ * @param token - Token JWT de la session
+ * @returns L'utilisateur correspondant, ou null si session absente/expirée
+ */
+export async function getUserFromSession(
+  token: string
+): Promise<User | null> {
+  try {
+    const result = await db.execute({
+      sql: `SELECT u.id, u.email, u.password_hash, u.name, u.created_at
+            FROM users u
+            INNER JOIN sessions s ON s.user_id = u.id
+            WHERE s.token = ?
+              AND s.expires_at > datetime('now')`,
+      args: [token],
+    });
+
+    if (result.rows.length === 0) return null;
+
+    const row = result.rows[0];
+    return {
+      id: row["id"] as string,
+      email: row["email"] as string,
+      passwordHash: row["password_hash"] as string,
+      name: row["name"] as string,
+      createdAt: row["created_at"] as string,
+    };
+  } catch {
+    return null;
+  }
 }
