@@ -7,16 +7,58 @@ import "./globals.css";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: "swap",
 });
 
+const BASE_URL = process.env["NEXT_PUBLIC_APP_URL"] ?? "https://example.com";
+
 export const metadata: Metadata = {
-  title: "SaaS Boilerplate",
-  description: "Boilerplate Next.js production-ready avec Turso, JWT et Tailwind",
+  metadataBase: new URL(BASE_URL),
+  title: {
+    default: "SaaS Boilerplate",
+    template: "%s | SaaS Boilerplate",
+  },
+  description:
+    "Boilerplate Next.js production-ready avec Turso, JWT et Tailwind. Lancez votre SaaS en quelques heures.",
+  openGraph: {
+    type: "website",
+    locale: "fr_FR",
+    url: BASE_URL,
+    siteName: "SaaS Boilerplate",
+    title: "SaaS Boilerplate",
+    description:
+      "Boilerplate Next.js production-ready avec Turso, JWT et Tailwind. Lancez votre SaaS en quelques heures.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "SaaS Boilerplate",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "SaaS Boilerplate",
+    description:
+      "Boilerplate Next.js production-ready avec Turso, JWT et Tailwind. Lancez votre SaaS en quelques heures.",
+    images: ["/og-image.png"],
+  },
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({

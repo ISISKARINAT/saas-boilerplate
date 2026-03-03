@@ -15,11 +15,28 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
-export const metadata: Metadata = {
-  title: "Boilerplate — Build faster, ship smarter",
-  description:
-    "The modern SaaS boilerplate with auth, billing, and everything you need to launch.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const title = "Boilerplate — Build faster, ship smarter";
+  const description =
+    "The modern SaaS boilerplate with auth, billing, and everything you need to launch.";
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url: "/",
+      images: [{ url: "/og-image.png", width: 1200, height: 630, alt: title }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: ["/og-image.png"],
+    },
+  };
+}
 
 const FEATURES = [
   {
