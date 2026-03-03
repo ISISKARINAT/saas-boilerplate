@@ -10,13 +10,12 @@
  *   => Never parse the body with request.json() before constructEvent.
  *
  * Handled events:
- *   - checkout.session.completed       : subscription activated or one-time payment
- *   - customer.subscription.updated    : plan or status change
- *   - customer.subscription.deleted    : subscription cancelled
+ *   - checkout.session.completed    : subscription activated or one-time payment
+ *   - customer.subscription.deleted : subscription cancelled
  */
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { stripe } from "@/lib/stripe";
+import { stripe, getPlanByPriceId } from "@/lib/stripe";
 import { client } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
 
@@ -32,7 +31,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // Read raw body (required for signature verification)
   const rawBody = await request.text();
 
-  // Signature header sent by Stripe with every webhook
   const signature = request.headers.get("stripe-signature");
 
   const webhookSecret = process.env["STRIPE_WEBHOOK_SECRET"];
@@ -81,12 +79,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         break;
       }
 
-      case "customer.subscription.updated": {
-        const subscription = event.data.object as Stripe.Subscription;
-        await handleSubscriptionUpdated(subscription);
-        break;
-      }
-
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
         await handleSubscriptionDeleted(subscription);
@@ -113,20 +105,44 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 }
 
 /**
- * Maps a Stripe subscription status to our internal SubscriptionStatus enum.
+ * Upserts a subscription row for the given user.
+ * Because user_id has no UNIQUE constraint we do an explicit check-then-write.
  */
-function mapStatus(
-  stripeStatus: Stripe.Subscription.Status
-): "active" | "inactive" | "cancelled" {
-  if (stripeStatus === "active" || stripeStatus === "trialing") return "active";
-  if (stripeStatus === "canceled") return "cancelled";
-  return "inactive";
+async function upsertSubscription(
+  userId: string,
+  customerId: string,
+  plan: string,
+  status: "active" | "inactive" | "cancelled"
+): Promise<void> {
+  const existing = await client.execute({
+    sql: "SELECT id FROM subscriptions WHERE user_id = ? LIMIT 1",
+    args: [userId],
+  });
+
+  if (existing.rows.length > 0) {
+    await client.execute({
+      sql: `UPDATE subscriptions
+            SET stripe_customer_id = ?,
+                plan               = ?,
+                status             = ?
+            WHERE user_id = ?`,
+      args: [customerId, plan, status, userId],
+    });
+  } else {
+    await client.execute({
+      sql: `INSERT INTO subscriptions (id, user_id, stripe_customer_id, plan, status)
+            VALUES (?, ?, ?, ?, ?)`,
+      args: [crypto.randomUUID(), userId, customerId, plan, status],
+    });
+  }
 }
 
 /**
  * Handles checkout.session.completed.
- * Creates or updates the subscription record in the database.
- * Sends an invoice email for subscription purchases.
+ * Creates or updates the subscription record and sends an invoice email.
+ *
+ * Reads client_reference_id (set to the internal user ID at checkout creation)
+ * and the Stripe Customer ID to persist the subscription in the database.
  */
 async function handleCheckoutCompleted(
   session: Stripe.Checkout.Session
@@ -145,58 +161,35 @@ async function handleCheckoutCompleted(
     return;
   }
 
-  let stripeSubscriptionId: string;
-  let stripePriceId: string;
-  let currentPeriodEnd: number; // unix timestamp in seconds
-
+  // Determine which plan was purchased from the Stripe Price ID
+  let plan = "pro"; // default for paid sessions
   if (session.mode === "subscription" && session.subscription) {
     const subscriptionId =
       typeof session.subscription === "string"
         ? session.subscription
         : session.subscription.id;
     const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-    stripeSubscriptionId = subscription.id;
-    stripePriceId = subscription.items.data[0]?.price.id ?? "";
-    // billing_cycle_anchor replaces current_period_end in API 2026-02-25.clover
-    currentPeriodEnd = subscription.billing_cycle_anchor;
-  } else {
-    // One-time payment — use session ID as unique subscription identifier
-    stripeSubscriptionId = session.id;
+    const priceId = subscription.items.data[0]?.price.id ?? "";
+    plan = getPlanByPriceId(priceId);
+    if (plan === "free") plan = "pro"; // paid checkout → at least pro
+  } else if (session.mode === "payment") {
     const sessionWithItems = await stripe.checkout.sessions.retrieve(
       session.id,
       { expand: ["line_items"] }
     );
-    stripePriceId = sessionWithItems.line_items?.data[0]?.price?.id ?? "";
-    currentPeriodEnd = Math.floor(Date.now() / 1000);
+    const priceId = sessionWithItems.line_items?.data[0]?.price?.id ?? "";
+    plan = getPlanByPriceId(priceId);
+    if (plan === "free") plan = "pro";
   }
 
-  await client.execute({
-    sql: `
-      INSERT INTO subscriptions (id, user_id, stripe_customer_id, stripe_subscription_id, stripe_price_id, status, current_period_end)
-      VALUES (?, ?, ?, ?, ?, 'active', ?)
-      ON CONFLICT(user_id) DO UPDATE SET
-        stripe_customer_id     = excluded.stripe_customer_id,
-        stripe_subscription_id = excluded.stripe_subscription_id,
-        stripe_price_id        = excluded.stripe_price_id,
-        status                 = 'active',
-        current_period_end     = excluded.current_period_end,
-        updated_at             = unixepoch()
-    `,
-    args: [
-      crypto.randomUUID(),
-      userId,
-      customerId,
-      stripeSubscriptionId,
-      stripePriceId,
-      currentPeriodEnd,
-    ],
-  });
+  // Update subscriptions table
+  await upsertSubscription(userId, customerId, plan, "active");
 
-  console.info("[stripe/webhook] Subscription activated", { userId });
+  console.info("[stripe/webhook] Subscription activated", { userId, plan });
 
   if (session.mode !== "subscription") return;
 
-  // Send invoice email for subscription purchases
+  // Send invoice email — fetch user email from the users table
   const userResult = await client.execute({
     sql: "SELECT email FROM users WHERE id = ? LIMIT 1",
     args: [userId],
@@ -220,7 +213,13 @@ async function handleCheckoutCompleted(
     invoiceNumber: `INV-${session.id.slice(-8).toUpperCase()}`,
     invoiceDate,
     dueDate: invoiceDate,
-    items: [{ description: "Pro Plan — Monthly", quantity: 1, unitPrice: total }],
+    items: [
+      {
+        description: `${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan — Monthly`,
+        quantity: 1,
+        unitPrice: total,
+      },
+    ],
     total,
     currency,
     downloadUrl: `${appUrl}/billing`,
@@ -233,48 +232,9 @@ async function handleCheckoutCompleted(
 }
 
 /**
- * Handles customer.subscription.updated.
- * Updates status and period end in the subscriptions table.
- */
-async function handleSubscriptionUpdated(
-  subscription: Stripe.Subscription
-): Promise<void> {
-  const customerId =
-    typeof subscription.customer === "string"
-      ? subscription.customer
-      : subscription.customer.id;
-
-  const currentPeriodEnd = subscription.billing_cycle_anchor;
-  const status = mapStatus(subscription.status);
-
-  await client.execute({
-    sql: `
-      UPDATE subscriptions
-      SET stripe_subscription_id = ?,
-          stripe_price_id        = ?,
-          status                 = ?,
-          current_period_end     = ?,
-          updated_at             = unixepoch()
-      WHERE stripe_customer_id = ?
-    `,
-    args: [
-      subscription.id,
-      subscription.items.data[0]?.price.id ?? "",
-      status,
-      currentPeriodEnd,
-      customerId,
-    ],
-  });
-
-  console.info("[stripe/webhook] Subscription updated", {
-    subscriptionId: subscription.id,
-    status,
-  });
-}
-
-/**
  * Handles customer.subscription.deleted.
- * Sets status to "cancelled" in the subscriptions table.
+ * Sets plan back to "free" and status to "cancelled" in the subscriptions table.
+ * Matches the row by stripe_customer_id since we don't store stripe_subscription_id.
  */
 async function handleSubscriptionDeleted(
   subscription: Stripe.Subscription
@@ -285,16 +245,17 @@ async function handleSubscriptionDeleted(
       : subscription.customer.id;
 
   await client.execute({
-    sql: `
-      UPDATE subscriptions
-      SET status     = 'cancelled',
-          updated_at = unixepoch()
-      WHERE stripe_customer_id = ?
-    `,
+    sql: `UPDATE subscriptions
+          SET plan   = 'free',
+              status = 'cancelled'
+          WHERE stripe_customer_id = ?`,
     args: [customerId],
   });
 
   console.info("[stripe/webhook] Subscription cancelled", {
     subscriptionId: subscription.id,
+    customerId,
   });
 }
+
+
