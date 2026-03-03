@@ -1,13 +1,13 @@
 /**
  * Main analytics dashboard page — Server Component.
- * Displays a welcome message, key metric cards, and a recent activity placeholder.
+ * Displays a welcome message, key metric cards, onboarding flow, and a recent activity placeholder.
  */
 import { headers } from "next/headers";
 import {
   DollarSign,
   Users,
-  CreditCard,
   TrendingUp,
+  UserMinus,
   Activity,
 } from "lucide-react";
 import {
@@ -17,6 +17,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -25,43 +26,44 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { OnboardingFlow } from "./_components/OnboardingFlow";
 
 interface MetricCard {
   title: string;
   value: string;
-  description: string;
-  icon: React.ReactNode;
   trend: string;
+  trendUp: boolean;
+  icon: React.ReactNode;
 }
 
 const METRIC_CARDS: MetricCard[] = [
   {
     title: "Total Revenue",
     value: "$0.00",
-    description: "No data yet",
+    trend: "+0% from last month",
+    trendUp: true,
     icon: <DollarSign className="h-5 w-5 text-muted-foreground" />,
-    trend: "+0% from last month",
   },
   {
-    title: "New Users",
+    title: "Active Users",
     value: "0",
-    description: "No data yet",
+    trend: "+0% from last month",
+    trendUp: true,
     icon: <Users className="h-5 w-5 text-muted-foreground" />,
-    trend: "+0% from last month",
   },
   {
-    title: "Active Subscriptions",
-    value: "0",
-    description: "No data yet",
-    icon: <CreditCard className="h-5 w-5 text-muted-foreground" />,
-    trend: "+0% from last month",
-  },
-  {
-    title: "Growth Rate",
+    title: "Conversions",
     value: "0%",
-    description: "No data yet",
-    icon: <TrendingUp className="h-5 w-5 text-muted-foreground" />,
     trend: "+0% from last month",
+    trendUp: true,
+    icon: <TrendingUp className="h-5 w-5 text-muted-foreground" />,
+  },
+  {
+    title: "Churn Rate",
+    value: "0%",
+    trend: "0% from last month",
+    trendUp: false,
+    icon: <UserMinus className="h-5 w-5 text-muted-foreground" />,
   },
 ];
 
@@ -84,29 +86,43 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      {/* Metric cards grid */}
-      <section aria-label="Key metrics">
+      {/* Metrics Overview */}
+      <section aria-label="Metrics Overview">
+        <h2 className="mb-4 text-xl font-semibold tracking-tight">
+          Metrics Overview
+        </h2>
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
           {METRIC_CARDS.map((card) => (
-            <Card key={card.title}>
-              <CardHeader>
+            <Card
+              key={card.title}
+              className="transition-shadow hover:shadow-md dark:hover:shadow-primary/10"
+            >
+              <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardDescription className="text-lg font-semibold">
+                  <CardDescription className="text-sm font-medium">
                     {card.title}
                   </CardDescription>
                   {card.icon}
                 </div>
-                <CardTitle className="text-4xl font-bold">
+                <CardTitle className="text-3xl font-bold">
                   {card.value}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">{card.trend}</p>
+                <Badge
+                  variant={card.trendUp ? "default" : "destructive"}
+                  className="text-xs font-normal"
+                >
+                  {card.trend}
+                </Badge>
               </CardContent>
             </Card>
           ))}
         </div>
       </section>
+
+      {/* Onboarding Flow */}
+      <OnboardingFlow />
 
       {/* Recent activity */}
       <section aria-label="Recent activity">
