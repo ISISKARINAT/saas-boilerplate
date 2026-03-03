@@ -29,7 +29,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Recherche de l'utilisateur en base
     const result = await db.execute({
-      sql: "SELECT id, email, hashed_password FROM users WHERE email = ? LIMIT 1",
+      sql: "SELECT id, email, password_hash FROM users WHERE email = ? LIMIT 1",
       args: [email],
     });
 
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const hashedPassword = String(row["hashed_password"]);
+    const hashedPassword = String(row["password_hash"]);
     const isValid = await verifyPassword(password, hashedPassword);
 
     if (!isValid) {

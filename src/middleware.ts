@@ -1,77 +1,51 @@
 /**
  * Middleware Next.js — protection des routes authentifiées.
- * Protège : /dashboard/*, /api/protected/*
- * Vérifie le JWT dans le cookie "token", redirige vers /login si invalide.
- * Transmet l'ID utilisateur via l'en-tête X-User-Id aux routes API.
+ * Protège : /dashboard/*
+ * Vérifie le JWT dans le cookie "token" via verifyAuthToken, redirige vers /login si invalide.
+ * Redirige les utilisateurs authentifiés depuis /login et /register vers /dashboard.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { jwtVerify } from "jose";
+import { verifyAuthToken } from "@/lib/auth";
 
-// Routes protégées par l'authentification
-const PROTECTED_ROUTES = ["/dashboard", "/api/protected"];
-
-// Routes accessibles uniquement aux utilisateurs non-authentifiés
-const AUTH_ROUTES = ["/login", "/register", "/forgot-password", "/reset-password"];
-
-/**
- * Récupère la clé secrète JWT depuis les variables d'environnement.
- */
-function getJwtSecretKey(): Uint8Array {
-  const secret = process.env["JWT_SECRET"];
-  if (!secret) throw new Error("JWT_SECRET manquant");
-  return new TextEncoder().encode(secret);
-}
+const PROTECTED_ROUTES: string[] = ["/dashboard"];
+const AUTH_ROUTES: string[] = ["/login", "/register"];
 
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
-
-  // Vérification si la route est protégée
-  const isProtectedRoute = PROTECTED_ROUTES.some((route) =>
-    pathname.startsWith(route)
-  );
-
-  // Récupération du token JWT depuis les cookies
   const token = request.cookies.get("token")?.value;
+
+  const isProtectedRoute = PROTECTED_ROUTES.some((r) =>
+    pathname.startsWith(r)
+  );
 
   if (isProtectedRoute) {
     if (!token) {
-      // Pas de token — redirection vers /login
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("redirect", pathname);
       return NextResponse.redirect(loginUrl);
     }
 
-    try {
-      const { payload } = await jwtVerify(token, getJwtSecretKey());
-      const userId = payload["userId"];
+    const payload = await verifyAuthToken(token);
 
-      if (typeof userId !== "string") {
-        throw new Error("userId manquant dans le payload JWT");
-      }
-
-      // Transmet l'ID utilisateur aux routes API via header
-      const response = NextResponse.next();
-      response.headers.set("X-User-Id", userId);
-      return response;
-    } catch {
-      // Token invalide ou expiré — redirection vers /login
+    if (!payload) {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("redirect", pathname);
       const response = NextResponse.redirect(loginUrl);
-      // Supprime le cookie invalide
       response.cookies.delete("token");
       return response;
     }
+
+    const response = NextResponse.next();
+    response.headers.set("X-User-Id", payload.userId);
+    return response;
   }
 
-  // Redirige les utilisateurs déjà authentifiés loin des pages d'auth
-  const isAuthRoute = AUTH_ROUTES.some((route) => pathname.startsWith(route));
+  // Redirige les utilisateurs authentifiés loin des pages d'auth
+  const isAuthRoute = AUTH_ROUTES.some((r) => pathname.startsWith(r));
   if (isAuthRoute && token) {
-    try {
-      await jwtVerify(token, getJwtSecretKey());
+    const payload = await verifyAuthToken(token);
+    if (payload) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
-    } catch {
-      // Token invalide, laisse accéder à la page d'auth
     }
   }
 
@@ -79,12 +53,5 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
 }
 
 export const config = {
-  matcher: [
-    "/dashboard/:path*",
-    "/api/protected/:path*",
-    "/login",
-    "/register",
-    "/forgot-password",
-    "/reset-password",
-  ],
+  matcher: ["/dashboard/:path*", "/login", "/register"],
 };

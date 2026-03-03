@@ -2,14 +2,15 @@
  * POST /api/send — Envoi d'emails via Resend.
  * Protégé par middleware (X-User-Id requis).
  * Body: { to: string, template: "welcome" | "reset-password" | "invoice", data: object }
+ * Rate limit: 5 emails par minute par adresse IP.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { z } from "zod";
 import { render } from "@react-email/components";
-import WelcomeEmail from "@/components/emails/welcome";
-import ResetPasswordEmail from "@/components/emails/reset-password";
-import InvoiceEmail from "@/components/emails/invoice";
+import WelcomeEmail from "@/emails/templates/WelcomeEmail";
+import ResetPasswordEmail from "@/emails/templates/ResetPasswordEmail";
+import InvoiceEmail from "@/emails/templates/InvoiceEmail";
 
 const welcomeDataSchema = z.object({
   userName: z.string().min(1),
@@ -64,6 +65,27 @@ const SUBJECTS: Record<SendEmailPayload["template"], string> = {
   invoice: "Your invoice is ready",
 };
 
+// Rate limiting en mémoire : 5 emails/minute par IP
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT = 5;
+const RATE_WINDOW_MS = 60 * 1000;
+
+/**
+ * Vérifie et incrémente le compteur de rate limit pour une IP donnée.
+ * @returns true si la requête est autorisée, false si la limite est atteinte
+ */
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= RATE_LIMIT) return false;
+  entry.count++;
+  return true;
+}
+
 async function renderEmail(payload: SendEmailPayload): Promise<string> {
   switch (payload.template) {
     case "welcome":
@@ -79,6 +101,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const userId = request.headers.get("X-User-Id");
   if (!userId) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  }
+
+  // Rate limiting par IP (5 emails/minute)
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    request.headers.get("x-real-ip") ??
+    "unknown";
+  if (!checkRateLimit(ip)) {
+    return NextResponse.json(
+      { error: "Trop de requêtes — limite de 5 emails par minute atteinte" },
+      { status: 429 }
+    );
   }
 
   const apiKey = process.env["RESEND_API_KEY"];

@@ -3,7 +3,7 @@
  * Variables requises : STRIPE_SECRET_KEY
  */
 import Stripe from "stripe";
-import { db } from "@/lib/db";
+import { client } from "@/lib/db";
 
 // Validation au démarrage
 const stripeSecretKey = process.env["STRIPE_SECRET_KEY"];
@@ -27,7 +27,7 @@ export const stripe = new Stripe(stripeSecretKey, {
 export async function getStripeCustomerId(
   userId: string
 ): Promise<string | null> {
-  const result = await db.execute({
+  const result = await client.execute({
     sql: "SELECT stripe_customer_id FROM subscriptions WHERE user_id = ? LIMIT 1",
     args: [userId],
   });

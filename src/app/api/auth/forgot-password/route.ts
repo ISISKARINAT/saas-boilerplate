@@ -4,8 +4,9 @@
  * Retourne toujours 200 pour éviter l'énumération d'adresses e-mail.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { client } from "@/lib/db";
 import { SignJWT } from "jose";
+import { sendResetPasswordEmail } from "@/lib/auth";
 import { z } from "zod";
 import { randomUUID } from "crypto";
 
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const { email } = parsed.data;
 
     // Recherche de l'utilisateur (silencieuse si absent)
-    const result = await db.execute({
+    const result = await client.execute({
       sql: "SELECT id FROM users WHERE email = ? LIMIT 1",
       args: [email],
     });
@@ -52,8 +53,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const appUrl = process.env["NEXT_PUBLIC_APP_URL"] ?? "http://localhost:3000";
       const resetUrl = `${appUrl}/reset-password?token=${resetToken}`;
 
-      // TODO: Intégrer un service d'envoi d'e-mail (Resend, Nodemailer, etc.)
-      // Pour l'instant, on logue l'URL en développement
+      // Envoi de l'email de réinitialisation via sendResetPasswordEmail
+      await sendResetPasswordEmail(email, resetToken).catch((err: unknown) => {
+        console.error("[forgot-password] Échec envoi ResetPasswordEmail", {
+          error: err instanceof Error ? err.message : "Erreur inconnue",
+        });
+      });
+
+      // En développement, on logue également l'URL pour faciliter les tests
       if (process.env["NODE_ENV"] !== "production") {
         console.log(`[RESET PASSWORD] URL: ${resetUrl}`);
       }

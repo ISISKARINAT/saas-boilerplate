@@ -1,118 +1,89 @@
 "use client";
 
 /**
- * Page de réinitialisation du mot de passe (étape 1).
- * Envoie un e-mail avec un lien de réinitialisation via POST /api/auth/forgot-password.
+ * Page mot de passe oublié — saisie de l'e-mail pour recevoir un lien de réinitialisation.
+ * Utilise un Server Action qui envoie l'e-mail de manière sécurisée.
  */
-import { useState, FormEvent } from "react";
+import { useActionState } from "react";
 import Link from "next/link";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { forgotPasswordAction, type ForgotPasswordState } from "@/app/actions/auth";
 
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [state, formAction, isPending] = useActionState<ForgotPasswordState, FormData>(
+    forgotPasswordAction,
+    null
+  );
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-
-    try {
-      const res = await fetch("/api/auth/forgot-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-
-      const data: unknown = await res.json();
-
-      if (!res.ok) {
-        const message =
-          data && typeof data === "object" && "error" in data
-            ? String((data as { error: unknown }).error)
-            : "Erreur lors de la demande";
-        setError(message);
-        return;
-      }
-
-      setSuccess(true);
-    } catch {
-      setError("Impossible d'envoyer l'e-mail. Vérifiez votre connexion.");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const isSuccess = state !== null && "success" in state;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bg px-4">
-      <div className="w-full max-w-md">
-        <div className="bg-surface rounded-2xl shadow-lg p-8 space-y-6">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-text">
-              Mot de passe oublié
-            </h1>
-            <p className="text-sm text-text/60 mt-1">
-              Saisissez votre e-mail pour recevoir un lien de réinitialisation
-            </p>
-          </div>
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center space-y-1">
+          <CardTitle className="text-2xl">Mot de passe oublié</CardTitle>
+          <CardDescription>
+            Saisissez votre e-mail pour recevoir un lien de réinitialisation
+          </CardDescription>
+        </CardHeader>
 
-          {success ? (
+        <CardContent className="space-y-4">
+          {isSuccess ? (
             <div
               role="status"
-              className="bg-success/10 border border-success/30 text-success rounded-lg px-4 py-3 text-sm text-center"
+              className="rounded-md bg-green-500/10 border border-green-500/30 px-4 py-3 text-sm text-green-600 dark:text-green-400 text-center"
             >
               Un e-mail vous a été envoyé si ce compte existe.
             </div>
           ) : (
             <>
-              {error && (
+              {state?.error && (
                 <div
                   role="alert"
-                  className="bg-error/10 border border-error/30 text-error rounded-lg px-4 py-3 text-sm"
+                  className="rounded-md bg-destructive/10 border border-destructive/30 px-4 py-3 text-sm text-destructive"
                 >
-                  {error}
+                  {state.error}
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label
-                    htmlFor="email"
-                    className="block text-sm font-medium text-text mb-1"
-                  >
+              <form action={formAction} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label htmlFor="email" className="text-sm font-medium">
                     Adresse e-mail
                   </label>
-                  <input
+                  <Input
                     id="email"
+                    name="email"
                     type="email"
                     autoComplete="email"
                     required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-text placeholder:text-text/40 focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder="vous@exemple.com"
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-primary hover:bg-primary/90 text-white font-semibold rounded-lg py-2.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? "Envoi…" : "Envoyer le lien"}
-                </button>
+                <Button type="submit" className="w-full" disabled={isPending}>
+                  {isPending ? "Envoi…" : "Envoyer le lien"}
+                </Button>
               </form>
             </>
           )}
+        </CardContent>
 
-          <p className="text-center text-sm text-text/60">
-            <Link href="/login" className="text-primary hover:underline">
-              Retour à la connexion
-            </Link>
-          </p>
-        </div>
-      </div>
+        <CardFooter className="justify-center text-sm text-muted-foreground">
+          <Link href="/login" className="text-primary hover:underline">
+            Retour à la connexion
+          </Link>
+        </CardFooter>
+      </Card>
     </div>
   );
 }

@@ -3,7 +3,7 @@
  * Valide le token JWT de réinitialisation et met à jour le mot de passe en base.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { client } from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
 import { jwtVerify } from "jose";
 import { z } from "zod";
@@ -54,8 +54,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Mise à jour du mot de passe
     const hashedPassword = await hashPassword(password);
-    await db.execute({
-      sql: "UPDATE users SET hashed_password = ?, updated_at = datetime('now') WHERE id = ?",
+    await client.execute({
+      sql: "UPDATE users SET password_hash = ? WHERE id = ?",
       args: [hashedPassword, userId],
     });
 

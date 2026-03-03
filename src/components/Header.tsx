@@ -25,8 +25,7 @@ export default function Header({ userId }: HeaderProps) {
 
   return (
     <header className="h-16 flex-shrink-0 border-b border-white/10 bg-surface px-6 flex items-center justify-between">
-      {/* Titre dynamique (géré par les layouts enfants) */}
-      <div className="text-sm text-text/40 font-medium">Tableau de bord</div>
+      <h1 className="text-sm font-semibold text-text">Dashboard Overview</h1>
 
       {/* Avatar + menu déroulant */}
       <div className="relative">

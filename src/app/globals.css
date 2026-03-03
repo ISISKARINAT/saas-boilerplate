@@ -5,149 +5,258 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ============================================================
-   Design System — Variables CSS
-   Mode sombre par défaut (Dark Nebula theme)
+   Design System — CSS Variables
+   Colors use HSL channel values (no hsl() wrapper) so they
+   can be composed with opacity modifiers in Tailwind utilities.
    ============================================================ */
 
 :root {
-  /* Couleurs sémantiques */
-  --color-primary:   #6366f1; /* Indigo */
-  --color-secondary: #a855f7; /* Violet */
-  --color-success:   #22c55e; /* Vert */
-  --color-error:     #ef4444; /* Rouge */
-  --color-warning:   #f59e0b; /* Ambre */
+  /* ── Core design tokens (light mode) ── */
+  --background:             0 0% 100%;
+  --foreground:             222.2 48.4% 9.8%;
+  --card:                   0 0% 100%;
+  --card-foreground:        222.2 47.4% 11.2%;
+  --popover:                0 0% 100%;
+  --popover-foreground:     222.2 47.4% 11.2%;
+  --primary:                222.2 47.4% 11.2%;
+  --primary-foreground:     210 20% 98%;
+  --secondary:              210 40% 96.1%;
+  --secondary-foreground:   222.2 47.4% 11.2%;
+  --muted:                  210 40% 96.1%;
+  --muted-foreground:       215.4 16.3% 46.9%;
+  --accent:                 210 40% 96.1%;
+  --accent-foreground:      222.2 47.4% 11.2%;
+  --destructive:            0 84.2% 60.2%;
+  --destructive-foreground: 210 20% 98%;
+  --border:                 214.3 31.8% 91.4%;
+  --input:                  214.3 31.8% 91.4%;
+  --ring:                   222.2 47.4% 11.2%;
+  --radius:                 0.5rem;
 
-  /* Surfaces (light mode) */
-  --color-bg:      #f8fafc;
-  --color-surface: #ffffff;
-  --color-text:    #0f172a;
+  /* ── Extended semantic palette ── */
+  --color-success:             #22c55e;
+  --color-success-light:       #4ade80;
+  --color-success-dark:        #16a34a;
+  --color-success-foreground:  #ffffff;
+  --color-error:               #ef4444;
+  --color-error-light:         #f87171;
+  --color-error-dark:          #dc2626;
+  --color-error-foreground:    #ffffff;
+  --color-warning:             #f59e0b;
+  --color-warning-light:       #fbbf24;
+  --color-warning-dark:        #d97706;
+  --color-warning-foreground:  #1c1917;
+  --color-surface:             hsl(0 0% 100%);
+  --color-text:                hsl(222.2 48.4% 9.8%);
+  --color-text-muted:          hsl(215.4 16.3% 46.9%);
+  --color-bg:                  hsl(0 0% 100%);
 
-  /* Typographie */
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* ── Typography ── */
+  --font-sans:             var(--font-geist-sans, ui-sans-serif, system-ui, sans-serif);
+  --font-mono:             var(--font-geist-mono, ui-monospace, monospace);
+  --font-size-xs:          0.75rem;   /* 12px */
+  --font-size-sm:          0.875rem;  /* 14px */
+  --font-size-base:        1rem;      /* 16px */
+  --font-size-lg:          1.125rem;  /* 18px */
+  --font-size-xl:          1.25rem;   /* 20px */
+  --font-size-2xl:         1.5rem;    /* 24px */
+  --font-size-3xl:         1.875rem;  /* 30px */
+  --font-size-4xl:         2.25rem;   /* 36px */
+  --font-weight-light:     300;
+  --font-weight-normal:    400;
+  --font-weight-medium:    500;
+  --font-weight-semibold:  600;
+  --font-weight-bold:      700;
+  --line-height-tight:     1.25;
+  --line-height-normal:    1.5;
+  --line-height-relaxed:   1.75;
+  --letter-spacing-tight:  -0.025em;
+  --letter-spacing-normal: 0em;
+  --letter-spacing-wide:   0.025em;
 
-  /* Espacement base 4px */
-  --spacing: 4px;
-  --radius:   0.625rem;
-  --background:   oklch(1 0 0);
-  --foreground:   oklch(0.145 0 0);
-  --card:   oklch(1 0 0);
-  --card-foreground:   oklch(0.145 0 0);
-  --popover:   oklch(1 0 0);
-  --popover-foreground:   oklch(0.145 0 0);
-  --primary:   oklch(0.205 0 0);
-  --primary-foreground:   oklch(0.985 0 0);
-  --secondary:   oklch(0.97 0 0);
-  --secondary-foreground:   oklch(0.205 0 0);
-  --muted:   oklch(0.97 0 0);
-  --muted-foreground:   oklch(0.556 0 0);
-  --accent:   oklch(0.97 0 0);
-  --accent-foreground:   oklch(0.205 0 0);
-  --destructive:   oklch(0.577 0.245 27.325);
-  --border:   oklch(0.922 0 0);
-  --input:   oklch(0.922 0 0);
-  --ring:   oklch(0.708 0 0);
-  --chart-1:   oklch(0.646 0.222 41.116);
-  --chart-2:   oklch(0.6 0.118 184.704);
-  --chart-3:   oklch(0.398 0.07 227.392);
-  --chart-4:   oklch(0.828 0.189 84.429);
-  --chart-5:   oklch(0.769 0.188 70.08);
-  --sidebar:   oklch(0.985 0 0);
-  --sidebar-foreground:   oklch(0.145 0 0);
-  --sidebar-primary:   oklch(0.205 0 0);
-  --sidebar-primary-foreground:   oklch(0.985 0 0);
-  --sidebar-accent:   oklch(0.97 0 0);
-  --sidebar-accent-foreground:   oklch(0.205 0 0);
-  --sidebar-border:   oklch(0.922 0 0);
-  --sidebar-ring:   oklch(0.708 0 0);
+  /* ── Spacing (base 4px) ── */
+  --spacing-1:  0.25rem;
+  --spacing-2:  0.5rem;
+  --spacing-3:  0.75rem;
+  --spacing-4:  1rem;
+  --spacing-5:  1.25rem;
+  --spacing-6:  1.5rem;
+  --spacing-8:  2rem;
+  --spacing-10: 2.5rem;
+  --spacing-12: 3rem;
+  --spacing-16: 4rem;
+  --spacing-20: 5rem;
+  --spacing-24: 6rem;
 }
 
-/* Mode sombre activé via classe .dark sur <html> */
+/* Dark mode activated via className="dark" on <html> */
 .dark {
-  --color-bg:      #09090b;
-  --color-surface: #18181b;
-  --color-text:    #fafafa;
-  --background:   oklch(0.145 0 0);
-  --foreground:   oklch(0.985 0 0);
-  --card:   oklch(0.205 0 0);
-  --card-foreground:   oklch(0.985 0 0);
-  --popover:   oklch(0.205 0 0);
-  --popover-foreground:   oklch(0.985 0 0);
-  --primary:   oklch(0.922 0 0);
-  --primary-foreground:   oklch(0.205 0 0);
-  --secondary:   oklch(0.269 0 0);
-  --secondary-foreground:   oklch(0.985 0 0);
-  --muted:   oklch(0.269 0 0);
-  --muted-foreground:   oklch(0.708 0 0);
-  --accent:   oklch(0.269 0 0);
-  --accent-foreground:   oklch(0.985 0 0);
-  --destructive:   oklch(0.704 0.191 22.216);
-  --border:   oklch(1 0 0 / 10%);
-  --input:   oklch(1 0 0 / 15%);
-  --ring:   oklch(0.556 0 0);
-  --chart-1:   oklch(0.488 0.243 264.376);
-  --chart-2:   oklch(0.696 0.17 162.48);
-  --chart-3:   oklch(0.769 0.188 70.08);
-  --chart-4:   oklch(0.627 0.265 303.9);
-  --chart-5:   oklch(0.645 0.246 16.439);
-  --sidebar:   oklch(0.205 0 0);
-  --sidebar-foreground:   oklch(0.985 0 0);
-  --sidebar-primary:   oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground:   oklch(0.985 0 0);
-  --sidebar-accent:   oklch(0.269 0 0);
-  --sidebar-accent-foreground:   oklch(0.985 0 0);
-  --sidebar-border:   oklch(1 0 0 / 10%);
-  --sidebar-ring:   oklch(0.556 0 0);
+  /* ── Core design tokens (dark mode) ── */
+  --background:             222.2 47.4% 11.2%;
+  --foreground:             210 20% 98%;
+  --card:                   222.2 47.4% 11.2%;
+  --card-foreground:        210 20% 98%;
+  --popover:                222.2 47.4% 11.2%;
+  --popover-foreground:     210 20% 98%;
+  --primary:                217.2 91.2% 59.8%;
+  --primary-foreground:     222.2 47.4% 11.2%;
+  --secondary:              217.2 32.6% 17.5%;
+  --secondary-foreground:   210 20% 98%;
+  --muted:                  217.2 32.6% 17.5%;
+  --muted-foreground:       210 20% 98%;
+  --accent:                 217.2 32.6% 17.5%;
+  --accent-foreground:      210 20% 98%;
+  --destructive:            0 62.8% 30.6%;
+  --destructive-foreground: 210 20% 98%;
+  --border:                 217.2 32.6% 17.5%;
+  --input:                  217.2 32.6% 17.5%;
+  --ring:                   217.2 91.2% 59.8%;
+
+  /* ── Extended semantic palette (dark) ── */
+  --color-success:             #4ade80;
+  --color-success-light:       #86efac;
+  --color-success-dark:        #22c55e;
+  --color-success-foreground:  #052e16;
+  --color-error:               #f87171;
+  --color-error-light:         #fca5a5;
+  --color-error-dark:          #ef4444;
+  --color-error-foreground:    #450a0a;
+  --color-warning:             #fbbf24;
+  --color-warning-light:       #fde68a;
+  --color-warning-dark:        #f59e0b;
+  --color-warning-foreground:  #1c1917;
+  --color-surface:             hsl(222.2 47.4% 15%);
+  --color-text:                hsl(210 20% 98%);
+  --color-text-muted:          hsl(215 16% 65%);
+  --color-bg:                  hsl(222.2 47.4% 11.2%);
 }
 
-/* Exposition des tokens dans Tailwind v4 */
+
+/* [data-theme='dark'] is an alias for .dark to support both class and data-attribute dark mode */
+[data-theme='dark'] {
+  --background:             222.2 47.4% 11.2%;
+  --foreground:             210 20% 98%;
+  --card:                   222.2 47.4% 11.2%;
+  --card-foreground:        210 20% 98%;
+  --popover:                222.2 47.4% 11.2%;
+  --popover-foreground:     210 20% 98%;
+  --primary:                217.2 91.2% 59.8%;
+  --primary-foreground:     222.2 47.4% 11.2%;
+  --secondary:              217.2 32.6% 17.5%;
+  --secondary-foreground:   210 20% 98%;
+  --muted:                  217.2 32.6% 17.5%;
+  --muted-foreground:       210 20% 98%;
+  --accent:                 217.2 32.6% 17.5%;
+  --accent-foreground:      210 20% 98%;
+  --destructive:            0 62.8% 30.6%;
+  --destructive-foreground: 210 20% 98%;
+  --border:                 217.2 32.6% 17.5%;
+  --input:                  217.2 32.6% 17.5%;
+  --ring:                   217.2 91.2% 59.8%;
+
+  --color-success:             #4ade80;
+  --color-success-light:       #86efac;
+  --color-success-dark:        #22c55e;
+  --color-success-foreground:  #052e16;
+  --color-error:               #f87171;
+  --color-error-light:         #fca5a5;
+  --color-error-dark:          #ef4444;
+  --color-error-foreground:    #450a0a;
+  --color-warning:             #fbbf24;
+  --color-warning-light:       #fde68a;
+  --color-warning-dark:        #f59e0b;
+  --color-warning-foreground:  #1c1917;
+  --color-surface:             hsl(222.2 47.4% 15%);
+  --color-text:                hsl(210 20% 98%);
+  --color-text-muted:          hsl(215 16% 65%);
+  --color-bg:                  hsl(222.2 47.4% 11.2%);
+}
+/* ── Expose design tokens to Tailwind v4 utilities ── */
 @theme inline {
-  --color-primary:   var(--color-primary);
-  --color-secondary: var(--color-secondary);
-  --color-success:   var(--color-success);
-  --color-error:     var(--color-error);
-  --color-warning:   var(--color-warning);
-  --color-bg:        var(--color-bg);
-  --color-surface:   var(--color-surface);
-  --color-text:      var(--color-text);
-  --font-sans:       var(--font-sans);
-  --font-mono:       var(--font-mono);
-  --color-sidebar-ring:   var(--sidebar-ring);
-  --color-sidebar-border:   var(--sidebar-border);
-  --color-sidebar-accent-foreground:   var(--sidebar-accent-foreground);
-  --color-sidebar-accent:   var(--sidebar-accent);
-  --color-sidebar-primary-foreground:   var(--sidebar-primary-foreground);
-  --color-sidebar-primary:   var(--sidebar-primary);
-  --color-sidebar-foreground:   var(--sidebar-foreground);
-  --color-sidebar:   var(--sidebar);
-  --color-chart-5:   var(--chart-5);
-  --color-chart-4:   var(--chart-4);
-  --color-chart-3:   var(--chart-3);
-  --color-chart-2:   var(--chart-2);
-  --color-chart-1:   var(--chart-1);
-  --color-ring:   var(--ring);
-  --color-input:   var(--input);
-  --color-border:   var(--border);
-  --color-destructive:   var(--destructive);
-  --color-accent-foreground:   var(--accent-foreground);
-  --color-accent:   var(--accent);
-  --color-muted-foreground:   var(--muted-foreground);
-  --color-muted:   var(--muted);
-  --color-secondary-foreground:   var(--secondary-foreground);
-  --color-primary-foreground:   var(--primary-foreground);
-  --color-popover-foreground:   var(--popover-foreground);
-  --color-popover:   var(--popover);
-  --color-card-foreground:   var(--card-foreground);
-  --color-card:   var(--card);
-  --color-foreground:   var(--foreground);
-  --color-background:   var(--background);
-  --radius-sm:   calc(var(--radius) - 4px);
-  --radius-md:   calc(var(--radius) - 2px);
-  --radius-lg:   var(--radius);
-  --radius-xl:   calc(var(--radius) + 4px);
-  --radius-2xl:   calc(var(--radius) + 8px);
-  --radius-3xl:   calc(var(--radius) + 12px);
-  --radius-4xl:   calc(var(--radius) + 16px);
+  /* Core colors — resolved via hsl() to support opacity modifiers */
+  --color-background:             hsl(var(--background));
+  --color-foreground:             hsl(var(--foreground));
+  --color-card:                   hsl(var(--card));
+  --color-card-foreground:        hsl(var(--card-foreground));
+  --color-popover:                hsl(var(--popover));
+  --color-popover-foreground:     hsl(var(--popover-foreground));
+  --color-primary:                hsl(var(--primary));
+  --color-primary-foreground:     hsl(var(--primary-foreground));
+  --color-secondary:              hsl(var(--secondary));
+  --color-secondary-foreground:   hsl(var(--secondary-foreground));
+  --color-muted:                  hsl(var(--muted));
+  --color-muted-foreground:       hsl(var(--muted-foreground));
+  --color-accent:                 hsl(var(--accent));
+  --color-accent-foreground:      hsl(var(--accent-foreground));
+  --color-destructive:            hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border:                 hsl(var(--border));
+  --color-input:                  hsl(var(--input));
+  --color-ring:                   hsl(var(--ring));
+
+  /* Extended semantic palette */
+  --color-success:             var(--color-success);
+  --color-success-light:       var(--color-success-light);
+  --color-success-dark:        var(--color-success-dark);
+  --color-success-foreground:  var(--color-success-foreground);
+  --color-error:               var(--color-error);
+  --color-error-light:         var(--color-error-light);
+  --color-error-dark:          var(--color-error-dark);
+  --color-error-foreground:    var(--color-error-foreground);
+  --color-warning:             var(--color-warning);
+  --color-warning-light:       var(--color-warning-light);
+  --color-warning-dark:        var(--color-warning-dark);
+  --color-warning-foreground:  var(--color-warning-foreground);
+  --color-surface:             var(--color-surface);
+  --color-text:                var(--color-text);
+  --color-text-muted:          var(--color-text-muted);
+  --color-bg:                  var(--color-bg);
+
+  /* Typography */
+  --font-sans:             var(--font-sans);
+  --font-mono:             var(--font-mono);
+  --font-size-xs:          var(--font-size-xs);
+  --font-size-sm:          var(--font-size-sm);
+  --font-size-base:        var(--font-size-base);
+  --font-size-lg:          var(--font-size-lg);
+  --font-size-xl:          var(--font-size-xl);
+  --font-size-2xl:         var(--font-size-2xl);
+  --font-size-3xl:         var(--font-size-3xl);
+  --font-size-4xl:         var(--font-size-4xl);
+  --font-weight-light:     var(--font-weight-light);
+  --font-weight-normal:    var(--font-weight-normal);
+  --font-weight-medium:    var(--font-weight-medium);
+  --font-weight-semibold:  var(--font-weight-semibold);
+  --font-weight-bold:      var(--font-weight-bold);
+  --line-height-tight:     var(--line-height-tight);
+  --line-height-normal:    var(--line-height-normal);
+  --line-height-relaxed:   var(--line-height-relaxed);
+  --letter-spacing-tight:  var(--letter-spacing-tight);
+  --letter-spacing-normal: var(--letter-spacing-normal);
+  --letter-spacing-wide:   var(--letter-spacing-wide);
+
+  /* Spacing (base 4px) */
+  --spacing-1:  var(--spacing-1);
+  --spacing-2:  var(--spacing-2);
+  --spacing-3:  var(--spacing-3);
+  --spacing-4:  var(--spacing-4);
+  --spacing-5:  var(--spacing-5);
+  --spacing-6:  var(--spacing-6);
+  --spacing-8:  var(--spacing-8);
+  --spacing-10: var(--spacing-10);
+  --spacing-12: var(--spacing-12);
+  --spacing-16: var(--spacing-16);
+  --spacing-20: var(--spacing-20);
+  --spacing-24: var(--spacing-24);
+
+  /* Radius */
+  --radius-sm:  calc(var(--radius) - 4px);
+  --radius-md:  calc(var(--radius) - 2px);
+  --radius-lg:  var(--radius);
+  --radius-xl:  calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
 }
 
 /* Reset minimal */
@@ -159,12 +268,16 @@
   padding: 0;
 }
 
-/* Le mode sombre est appliqué via className="dark" sur <html> dans layout.tsx */
+html {
+  font-size: 100%;
+  scroll-behavior: smooth;
+}
 
 body {
   background-color: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: var(--font-size-base);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
