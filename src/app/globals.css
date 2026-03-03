@@ -159,10 +159,7 @@
   padding: 0;
 }
 
-html {
-  /* Applique le mode sombre par défaut */
-  @apply dark;
-}
+/* Le mode sombre est appliqué via className="dark" sur <html> dans layout.tsx */
 
 body {
   background-color: var(--color-bg);

@@ -23,10 +23,12 @@ CREATE TABLE IF NOT EXISTS sessions (
 -- Table des abonnements Stripe
 CREATE TABLE IF NOT EXISTS subscriptions (
   id                  TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-  user_id             TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id             TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
   stripe_customer_id  TEXT,
+  subscription_id     TEXT,
   plan                TEXT NOT NULL DEFAULT 'free',
   status              TEXT NOT NULL DEFAULT 'active',
+  current_period_end  TEXT,
   created_at          TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
